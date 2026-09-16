@@ -1,119 +1,112 @@
-# Capstone Plan: Recipe Adaptation Agent
+# Capstone Plan: Recipe Budget Agent
 
 ## Context
-A user gives a recipe URL plus what's different for them — missing ingredients, a different serving size, and/or different cooking utensils. The agent adapts the recipe: it figures out what each missing ingredient does in *that specific recipe*, finds and validates substitutions (including checking how similar recipes use them and how well those are received), rescales quantities, rewrites instructions for the available equipment, checks the final recipe for internal consistency, and saves the personalized version to disk.
+Recipe Budget Agent takes a recipe URL, the ingredients the user already has, a desired serving size, any changes wanted, and a budget. It identifies missing ingredients, evaluates substitutions, compares the cost/practicality of substituting vs. buying the original ingredient, and for ingredients that can't be reasonably substituted, searches Swiggy Instamart and adds them to the user's cart. It then generates and downloads a personalized recipe document showing what the user already has, substitutions made, items added to cart, adjusted quantities, and step-by-step instructions.
 
-This plan covers the idea lock-in and repo setup (Assessment 1) and scopes what gets built for the working end-to-end agent (Assessment 2, due in 4 days).
+This supersedes the Assessment 1 "Recipe Adaptation Agent" plan (still visible in git history and in merged PR #1) — the substitution/adaptation core carries over; budget-based decisions and Instamart cart-building are new. This plan-update covers Assessment 1's planning requirement for the revised direction and scopes what gets built for Assessment 2 (starts next class).
 
 ## AI-Involvement Level
 
-**Target: Supervised full-autonomy within a bounded task.** Within one run, the agent makes every judgment call itself — end-to-end, no human-in-the-loop confirmation between steps: classifying what a missing ingredient does, proposing substitutes, deciding whether web evidence is strong enough to accept one, rescaling, rewriting instructions, and self-checking the final recipe. It does not pause to ask the user to approve each intermediate decision.
+**Target: Supervised full-autonomy within a bounded task** (carried forward from Assessment 1). Within one run, the agent makes every conditional decision itself — missing-ingredient detection, substitution evaluation, buy-vs-substitute comparison, cart updates, document assembly — without pausing for approval mid-run.
 
-**Why:** the whole point of this capstone is the multi-step judgment/retry loop (propose → validate → retry → self-check). If a human approved every substitution choice, the "agent" would just be a search assistant, and the graded criterion — does the agentic workflow actually run end-to-end — would be trivial to satisfy without demonstrating real autonomy.
+**Why:** the buy-vs-substitute decision per ingredient is a live, budget-dependent judgment call, and budget tracking across ingredients may require revisiting earlier decisions. If a human approved every decision, the agent would be a search assistant, not an agent — and the actual graded skill (coordinating multi-step, budget-constrained decisions with live external tools) wouldn't be demonstrated.
 
-**Where autonomy is deliberately bounded:** the agent's authority is scoped to *this one task*. It only reads the URL/inputs it's given, only searches for validation evidence, and only writes one output file to a fixed local `output/` folder — it doesn't take actions outside that (no auto-sending, no modifying other files, no browsing beyond what's needed to validate a substitution). And when it can't validate a substitution or the requested adaptation isn't feasible (e.g. no oven for a baked dish), it must say so rather than force an answer — the human reviews the final saved file before actually cooking from it. That's the human-in-the-loop point: after the run, not during it.
+**Where autonomy is deliberately bounded:** the agent's only external side effect is adding items to an Instamart cart — it never checks out or pays — plus writing one local file. The human reviews the cart and the document afterward, not during the run. Arithmetic (quantity scaling, running budget totals) stays as plain code, never delegated to the LLM. And if an ingredient can't be reasonably substituted or a purchase would break the budget, the agent must say so rather than silently forcing a bad substitution or silently overspending.
 
-## MVP scope (Assessment 2, due in 4 days)
+## MVP scope (Assessment 2)
 
-Deliberately narrow, so the loop is real and demoable rather than broad and flaky:
+- Accept a recipe URL + user inputs: ingredients on hand, desired serving size, requested changes, budget.
+- Identify missing ingredients by diffing recipe ingredients against what the user has.
+- Evaluate substitution candidates for missing ingredients (reasoning about each ingredient's functional role in the recipe).
+- For each missing ingredient, compare cost/practicality of substituting vs. buying the original via Instamart, and decide within the stated budget.
+- For ingredients being bought rather than substituted, search Swiggy Instamart and add them to the cart.
+- Recompute quantities for the desired serving size (deterministic math, not LLM).
+- Generate and download a personalized recipe document: ingredients on hand, substitutions made (with reasoning), items added to cart (with cost), adjusted quantities, step-by-step instructions, and a running budget summary.
+- Self-consistency check on the final document before saving.
 
-- Single recipe URL input, from a small set of well-structured recipe sites/blogs (not arbitrary URLs — many sites block scraping or use inconsistent markup).
-- English-language, text-based recipes only (no video/image-only recipes).
-- Handles at most a few missing ingredients per run, one serving-size change, and one utensil constraint — combined or individually.
-- Substitution validation loop: propose a candidate, search for evidence via WebSearch, accept/reject/retry, capped at 2-3 attempts per ingredient before flagging as unresolved.
-- Deterministic serving-size math handled as plain computation, not LLM guessing.
-- Self-consistency check on the final recipe before saving.
-- Output: one adapted recipe file + changes/rationale log, written locally via a Filesystem MCP server.
-- Two MCP servers: Fetch (recipe + evidence retrieval) and Filesystem (saving output).
-- One custom Skill (`recipe-adapter`) encoding the procedure, substitution reference table, validation bar, and output format.
+**Explicitly out of scope for MVP:** checkout/payment (cart only, never completes a purchase), multi-store price comparison, non-Instamart grocery sources, multi-currency/multi-region support, batch/multi-recipe runs, nutrition recalculation.
 
-**Explicitly out of scope for the MVP:** multi-URL/batch runs, non-English recipes, video/image recipe parsing, a UI (CLI/direct agent invocation is fine), nutrition recalculation, and asking a human for input mid-run.
+## Final goal
 
-## Final/stretch goals (beyond the 4-day MVP, time permitting)
-
-- Broader site support / more robust scraping fallback.
-- Nutrition-impact estimate when a substitution changes macros meaningfully.
-- A small local eval set (sample URL + expected-substitution-judgment pairs) to regression-test the validation loop.
-- Batch mode: adapt the same recipe for multiple constraint sets at once.
+One end-to-end workflow combining recipe adaptation, budget-based buy-vs-substitute decisions, Instamart cart building, and personalized recipe document generation, in a single run.
 
 ## 1. End-to-end workflow
 
-1. **Retrieve** — fetch the recipe page (Fetch MCP); extract ingredients (quantities/units), instructions, original serving size, equipment mentioned.
-2. **Understand missing ingredients** — for each, reason about its functional role *in this recipe* (e.g. "butter here = fat + moisture + flavor in a cookie dough").
-3. **Propose substitutes** — 1-3 candidates per missing ingredient with conversion ratios, using the Skill's reference table plus the agent's own knowledge.
-4. **Validate substitutes (the core loop)** — search for evidence the top candidate works in this type of recipe; if evidence is weak/contradictory, fall back to the next candidate and re-check, capped attempts; unresolved → flag to the user instead of guessing.
-5. **Rescale for servings** — deterministic math scaling every quantity to the target serving size.
-6. **Adjust for utensils** — rewrite instructions for different equipment; flag when the requested equipment swap likely breaks the dish (e.g. no oven for a baked good) rather than fabricating a method.
-7. **Self-consistency check** — verify every instruction step still references ingredients that exist and quantities scale consistently; loop back to fix if not.
-8. **Save** — write the final personalized recipe plus a changes/rationale log to disk via the Filesystem MCP.
+1. **Retrieve** — fetch the recipe (Recipe retrieval MCP): ingredients, quantities, instructions, servings.
+2. **Diff** — compare against the user's on-hand ingredients → list of missing ingredients.
+3. **Understand missing ingredients** — for each, determine its functional role in this recipe.
+4. **Propose substitutes** — candidate(s) where plausible, using the Skill's reference table plus the agent's own reasoning.
+5. **Compare cost/practicality** — substitute vs. buying the original at its live Instamart price; decide per-ingredient while tracking running spend against the stated budget (may revisit an earlier buy decision if a later one would exceed budget).
+6. **Buy what's being bought** — search Swiggy Instamart and add those items to the cart.
+7. **Rescale for servings** — deterministic math scaling every quantity to the target serving size.
+8. **Assemble the document** — on-hand ingredients, substitutions + reasoning, cart items + cost, adjusted quantities, instructions, budget summary.
+9. **Self-consistency check** — verify the document is internally coherent (no orphaned references, quantities and budget totals add up); loop back to fix if not.
+10. **Save** — download the final document locally.
 
 ## 2. What the Agent does, and why an Agent (not a script) is needed
 
-- **Judgment, not lookup:** what role an ingredient plays *in this recipe*, and whether a substitute will plausibly work, requires reasoning over unstructured text.
-- **Unbounded, conditional control flow:** how many ingredients are missing, how many substitution attempts are needed, and whether utensil constraints even make the recipe adaptable are unknown in advance — a real branching/retry loop, not a fixed pipeline.
-- **Tool use driven by need:** the agent decides when it has enough validation evidence vs. when to check one more source.
-- **Honesty over forcing an answer:** sometimes the right output is "this can't be adapted as asked" — that judgment is the hard/interesting part of the project.
+- **Live, budget-dependent judgment:** whether to substitute or buy an ingredient depends on its current Instamart price and the running budget — not a static lookup.
+- **Multi-step tool coordination:** recipe retrieval, live product search/pricing, and cart mutation are separate external calls whose outcomes aren't known until queried.
+- **Real branching, not a fixed pipeline:** budget tracking across ingredients may require revisiting and changing an earlier decision to stay within budget.
+- **Honesty over forcing an answer:** the agent must flag an ingredient it can't reasonably substitute or afford, rather than pretending a bad substitution works or silently overspending.
 
 ## 3. Non-agent workflow vs. where the Agent earns its place
 
-A plain script could handle: scraping with a fixed parser, scaling quantities by ratio math, and swapping ingredients from a static substitution table (e.g. "butter → applesauce, 1:1"). That part stays as **plain code, not an LLM call** — never delegate arithmetic to the LLM.
+A plain script could handle: serving-size math, a static substitution lookup table, and even calling a known Instamart search API with an exact item name. That stays as **plain code, not an LLM call**.
 
 Where a script breaks down and the Agent is genuinely better:
-- Judging whether a substitute works *in this specific recipe's context* (butter-as-fat-in-frosting vs. butter-as-fat-in-cookies behave differently).
-- Synthesizing scattered, sometimes-conflicting web evidence into an accept/reject decision.
-- Rewriting instructions in natural language for different equipment.
-- Catching internal inconsistency in the final modified recipe.
+- Matching ambiguous or regionally-named ingredients to real Instamart catalog listings.
+- Deciding whether substituting is actually worth it under a specific budget vs. buying the original.
+- Deciding when to stop substituting and just buy.
+- Producing a coherent final document synthesizing all of the above.
 
-## 4. What the custom Skill (SKILL.md) teaches the agent
+## 4. What the custom Skill ("Recipe Adaptation and Budget Skill") teaches the agent
 
-- The procedure, in order — retrieve → classify missing-ingredient roles → propose substitutes → validate → scale → rewrite for utensils → self-check → save — so the agent doesn't skip validation or save prematurely.
-- A substitution reference table for common ingredient roles (fat, binder, leavening, acid, thickener, sweetener) with typical ratios, as a fallback the agent can override with its own reasoning + search evidence.
-- The validation bar — what counts as "enough evidence" (e.g. found in ≥2 independent recipes/reviews of the same dish type, no strong negative signal) vs. when to flag as unresolved.
-- When to refuse/flag instead of forcing an answer.
-- The output file template and save location/naming convention.
+- Evaluating ingredient compatibility and finding/checking plausible substitutions.
+- The decision rule for substitute-vs-buy: compare substitute cost/practicality against the original's live purchase cost, weighed against the remaining budget.
+- When to flag an over-budget or infeasible ingredient to the user instead of silently exceeding budget or forcing a bad substitution.
+- Minimizing unnecessary purchases — don't buy something a reasonable substitute already covers.
+- Instamart search-term guidance for ambiguous/regional ingredient names.
+- The output document template and save/download convention.
 
 ## 5. Where the multi-step Agent loop happens
 
-Two nested loops:
-- **Per-ingredient substitution loop:** propose candidate → search for evidence → judge → accept, or try next candidate → repeat (capped) → accept or flag.
-- **Outer self-review loop:** after assembling the full adapted recipe, the agent checks its own output for consistency and can loop back to correct an ingredient/step before writing the file.
+- **Per-ingredient loop:** determine role → propose substitution candidate(s) → compare cost/practicality vs. buying → decide → update cart if buying.
+- **Budget-tracking loop across all ingredients:** running spend vs. stated budget, which may require revisiting an earlier per-ingredient decision to stay within budget.
+- **Final self-check / document-assembly pass** before saving.
 
 ## 6. MCP servers (2)
 
-1. **Fetch MCP server** — retrieves the recipe URL and supporting recipe/review pages as clean markdown/text. Used in retrieval and evidence-gathering.
-2. **Filesystem MCP server** — writes the final personalized recipe (and changes log) to a local folder; can also read a local substitution reference file.
-
-Web search for validation evidence uses the built-in WebSearch tool rather than a third MCP server, keeping the requirement at 2 MCPs (Fetch + Filesystem) while still getting real search capability.
+1. **Recipe retrieval/source MCP** — fetches and parses the recipe from the URL.
+2. **Swiggy Instamart MCP** — product search and cart updates (add items; never checkout). Availability is **not assumed** — this plan states it as the intended MCP; actual availability gets verified when Assessment 2 implementation starts.
 
 ## 7. What gets saved in the final version
 
-- `<recipe-name>-adapted.md` — full personalized recipe: ingredients (substitutions marked inline), scaled quantities, rewritten instructions.
-- A **Changes & Rationale** section: what was substituted and why, evidence (links), scaling math, utensil-driven rewrites or flags.
-- Optional JSON sidecar with structured before/after data for demo/testing.
-- Default save location: `./output/` (gitignored), filename includes a timestamp or recipe slug.
+One personalized recipe document, downloaded locally, containing: ingredients already on hand, substitutions made with reasoning, ingredients added to cart with cost, adjusted quantities for the target serving size, step-by-step instructions, and a budget summary (spent vs. stated budget).
 
 ## 8. GitHub repository structure
 
 ```
-richasajai_capstone/
+richa-sajai_capstone/
 ├── README.md
 ├── plan.md
 ├── BUILD_LOG.md
-├── .mcp.json                      # fetch + filesystem MCP server config
+├── .mcp.json                      # recipe-retrieval + Swiggy Instamart MCP config
 ├── .claude/
 │   └── skills/
-│       └── recipe-adapter/
+│       └── recipe-budget-agent/
 │           └── SKILL.md
 ├── reference/
 │   └── substitutions.md           # ingredient-role substitution table
 ├── examples/
 │   └── sample-runs.md             # input/output examples for grading
-├── output/                        # generated adapted recipes (gitignored)
+├── output/                        # generated recipe documents (gitignored)
 └── .gitignore
 ```
 
 ## Known risks / scoping calls
 
-- Recipe sites vary in structure and some block scraping — MVP scopes to a handful of well-structured sites/blogs.
-- "Validated by web evidence" is inherently fuzzy — the Skill's validation bar needs to be concrete enough to be explainable in a demo, not vibes-based.
-- Substitution-search attempts are capped per ingredient to keep runtime/cost reasonable during grading.
+- Swiggy Instamart MCP availability is unverified — the single biggest execution risk for Assessment 2.
+- Ingredient-name-to-catalog matching will need judgment, not exact string match (regional/brand naming differences).
+- Live pricing means budget comparisons aren't deterministic across runs.
+- MVP assumes a single grocery platform, region, and currency.
