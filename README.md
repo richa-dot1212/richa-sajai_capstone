@@ -6,6 +6,6 @@ See [plan.md](plan.md) for the full project plan and [BUILD_LOG.md](BUILD_LOG.md
 
 ## Status
 
-**Assessment 2, PR 1 (foundation):** custom Skill + MCP connections, tested against real inputs — see `.claude/skills/recipe-budget-agent/SKILL.md`, `.mcp.json`, and `examples/sample-runs.md` for actual test results (one MCP works, one is currently blocked — documented there). No agent yet.
+**Assessment 2, PR 1 (foundation):** custom Skill + MCP connections, both verified working end-to-end with real inputs — see `.claude/skills/recipe-budget-agent/SKILL.md`, `.mcp.json`, and `examples/sample-runs.md` for actual test results, including a real authenticated Swiggy Instamart product search. No agent yet.
 
 **Assessment 2, PR 2 (next):** the Gemini-powered agent, its perceive → reason → act → observe loop, and a full end-to-end run.

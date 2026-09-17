@@ -31,7 +31,7 @@ recipe content starts near the top of the fetched page, and/or should try
 markers (e.g. "Ingredients", quantity units) rather than reading from
 index 0 only.
 
-## Test 2: Swiggy Instamart MCP (`mcp-remote` → `https://mcp.swiggy.com/im`) — INITIALLY BLOCKED, FIXED WITH A LOCAL PROXY
+## Test 2: Swiggy Instamart MCP (`mcp-remote` → `https://mcp.swiggy.com/im`) — WORKING (initially blocked, fixed with a local proxy)
 
 Command: `npx -y mcp-remote https://mcp.swiggy.com/im`
 
@@ -101,12 +101,47 @@ https://mcp.swiggy.com/auth/authorize?response_type=code&client_id=swiggy-mcp&co
 authorization URL from Swiggy's actual `/auth/authorize` endpoint and is
 correctly waiting for login.
 
-**What's still a manual step, honestly:** completing that login requires a
-real Swiggy account and an interactive browser — something this headless
-session cannot do on the user's behalf. This proxy fixes the metadata bug
-(objectively verified above); the one-time OAuth login itself needs the
-user to run this in an interactive Claude Code session once, sign in with
-their own Swiggy account, and the resulting token will then be reused by
-`mcp-remote` for subsequent runs (tokens last 5 days per Swiggy's docs).
-`search_products`/cart tool calls have not yet been tested past that point
-for this reason — that's the concrete first step for PR 2.
+**Login completed and real tool calls verified.** The user ran the proxy in
+an interactive terminal, the browser opened automatically, and they logged
+into their real Swiggy account. The connection then completed:
+
+```
+[pid] Auth code received, resolving promise
+[pid] Completing authorization...
+[pid] Connected to remote server using StreamableHTTPClientTransport
+[pid] Local STDIO server running
+[pid] Proxy established successfully between local STDIO and remote StreamableHTTPClientTransport
+```
+
+(Two non-fatal SEP-2352 warnings appeared about `mcp-remote` not
+implementing a newer discovery-state binding — informational, did not
+block the connection.)
+
+With the resulting cached token (`~/.mcp-auth/mcp-remote-v1/..._tokens.json`,
+5-day expiry per Swiggy's docs), real authenticated tool calls were made
+directly against the proxy's HTTP endpoint (raw MCP JSON-RPC over
+Streamable HTTP, not mocked):
+
+- `tools/list` returned the server's real identity
+  (`swiggy-instamart-mcp-server`) and its full real tool set:
+  `get_addresses, create_address, delete_address, search_products,
+  your_go_to_items, get_cart, update_cart, clear_cart, checkout,
+  get_orders, track_order, get_delivery_status, report_error,
+  get_payment_options, check_payment_status, confirm_order`.
+- `get_addresses` returned the account's real saved addresses (not
+  reproduced here — real PII, deliberately excluded from this repo).
+- `search_products` for `"toor dal"` **initially failed** with `addressId
+  is required` — a genuine API validation error, revealing that
+  `search_products` needs a resolved `addressId` first (Instamart
+  inventory/pricing is address-local). Retried after resolving an
+  `addressId` from `get_addresses`, and it succeeded: 12 real matching
+  products plus 12 similar items, e.g. *"Tata Sampann Unpolished Toor Dal
+  (Arhar Dal), 500 g — MRP ₹118, offer price ₹101, rating 4.6 (21.8k),
+  8 min delivery"*, with full real pricing/stock/rating data for each.
+
+**Confirmed scope for PR 2:** `search_products` and `get_cart`/`update_cart`
+are real and callable now that a token exists; `checkout`/`confirm_order`/
+payment tools are present in the schema but must **not** be used, per the
+assignment's cart-only scope. Any future automated test run must resolve
+`addressId` via `get_addresses` before calling `search_products`, and must
+never print or commit real address/contact data returned by that tool.
