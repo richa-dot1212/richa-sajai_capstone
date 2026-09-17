@@ -5,8 +5,8 @@
       "args": ["-y", "fetch-mcp"]
     },
     "swiggy-instamart": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "https://mcp.swiggy.com/im"]
+      "command": "node",
+      "args": ["scripts/swiggy-mcp-proxy.js"]
     }
   }
 }

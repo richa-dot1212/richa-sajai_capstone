@@ -31,13 +31,14 @@ recipe content starts near the top of the fetched page, and/or should try
 markers (e.g. "Ingredients", quantity units) rather than reading from
 index 0 only.
 
-## Test 2: Swiggy Instamart MCP (`mcp-remote` → `https://mcp.swiggy.com/im`) — BLOCKED
+## Test 2: Swiggy Instamart MCP (`mcp-remote` → `https://mcp.swiggy.com/im`) — INITIALLY BLOCKED, FIXED WITH A LOCAL PROXY
 
 Command: `npx -y mcp-remote https://mcp.swiggy.com/im`
 
 Swiggy's Instamart MCP is real (Swiggy Builders Club, OAuth 2.1 + PKCE, no
 static API key) and `mcp-remote` is the standard bridge for stdio clients
-to reach OAuth-protected remote MCP servers. On connection attempt:
+to reach OAuth-protected remote MCP servers. On the first connection
+attempt (direct, no proxy):
 
 ```
 [pid] Discovering OAuth server configuration...
@@ -49,28 +50,63 @@ to reach OAuth-protected remote MCP servers. On connection attempt:
 [pid] Fatal error: IssuerMismatchError ...
 ```
 
-**What this is:** `mcp-remote` fetches Swiggy's OAuth authorization server
-metadata and strictly validates (per RFC 8414 §3.3) that the metadata's
-`issuer` field matches the server URL it was discovered from. Swiggy's
-metadata reports issuer `https://mcp.swiggy.com/auth`, but `mcp-remote`
-expected `https://mcp.swiggy.com/` (the MCP endpoint's own origin) — a real
-mismatch between Swiggy's OAuth metadata and `mcp-remote`'s strict RFC 8414
-check, not a headless-environment/browser limitation. `mcp-remote --help`
-exposes no flag to relax this check.
+**What this is:** confirmed as a real, currently-open bug on Swiggy's own
+side —
+[Swiggy/swiggy-mcp-server-manifest#88](https://github.com/Swiggy/swiggy-mcp-server-manifest/issues/88)
+(filed 2026-08-20, still reproducing per another developer's comment as of
+2026-09-14). Verified directly against the live server with `curl`:
 
-**What was attempted:**
-- Configuring `swiggy-instamart` in `.mcp.json` via `npx -y mcp-remote
-  https://mcp.swiggy.com/im` (current, correct URL and package per Swiggy's
-  own docs).
-- Running the connection directly from the command line to isolate the
-  failure from any client-specific behavior — same error.
-- Checked `mcp-remote --help` for a metadata-validation bypass flag — none
-  exists in the installed version (`mcp-remote@0.14.2`).
+- `POST https://mcp.swiggy.com/im` → 401, `WWW-Authenticate` points
+  `resource_metadata` at `https://mcp.swiggy.com/.well-known/oauth-protected-resource`,
+  which itself returns **404**.
+- `GET https://mcp.swiggy.com/.well-known/oauth-authorization-server` → 200,
+  but `issuer` is `"https://mcp.swiggy.com/auth"` instead of
+  `"https://mcp.swiggy.com"` — violates RFC 8414 §3.3, which is why
+  spec-compliant clients like `mcp-remote` reject it before ever reaching
+  browser login. `mcp-remote --help` exposes no flag to relax this check,
+  and path-aware discovery variants (`/.well-known/.../im`) don't help
+  either — they just hit the same 401 auth gate.
 
-**What remains blocked / next steps for PR 2:** either (a) wait for
-Swiggy or `mcp-remote` to fix the metadata mismatch, (b) pin/try a
-different `mcp-remote` version in case this is version-specific, or (c) if
-still blocked, connect using a lower-level MCP HTTP client that performs
-the OAuth flow without the strict issuer check, or fall back to a
-documented alternative Instamart integration path. This is the single
-biggest open risk carried into PR 2, as previously flagged in `plan.md`.
+**Fix applied:** `scripts/swiggy-mcp-proxy.js` — a small local Node reverse
+proxy that sits between `mcp-remote` and the real Swiggy server. It serves
+a corrected `oauth-authorization-server` document (fixed `issuer`), a
+synthesized `oauth-protected-resource` document (the real one 404s),
+rewrites the `WWW-Authenticate` header on proxied 401s to point back at
+itself instead of the broken real URL, and transparently forwards
+everything else (including the actual MCP traffic) to the real
+`https://mcp.swiggy.com`. `.mcp.json`'s `swiggy-instamart` entry now runs
+this proxy (which itself spawns `mcp-remote` pointed at the proxy) instead
+of calling `mcp-remote` directly.
+
+Verified end to end, run from the command line:
+
+```
+[swiggy-mcp-proxy] listening on http://127.0.0.1:8791, forwarding to https://mcp.swiggy.com
+[pid] Discovering OAuth server configuration...
+[pid] Discovered authorization server: http://127.0.0.1:8791
+[pid] Connecting to remote server: http://127.0.0.1:8791/im
+[pid] Using transport strategy: http-first
+
+Please authorize this client by visiting:
+https://mcp.swiggy.com/auth/authorize?response_type=code&client_id=swiggy-mcp&code_challenge=...&redirect_uri=http%3A%2F%2F127.0.0.1%3A29006%2Foauth%2Fcallback&...&resource=http%3A%2F%2F127.0.0.1%3A8791%2Fim
+
+[pid] Browser opened automatically.
+[pid] Authentication required. Initializing auth...
+[pid] OAuth callback server running at http://127.0.0.1:29006
+[pid] This instance is running the sign-in for this server (callback port 29006)
+[pid] Authentication required. Waiting for authorization...
+```
+
+`IssuerMismatchError` is gone — `mcp-remote` now gets a real, valid
+authorization URL from Swiggy's actual `/auth/authorize` endpoint and is
+correctly waiting for login.
+
+**What's still a manual step, honestly:** completing that login requires a
+real Swiggy account and an interactive browser — something this headless
+session cannot do on the user's behalf. This proxy fixes the metadata bug
+(objectively verified above); the one-time OAuth login itself needs the
+user to run this in an interactive Claude Code session once, sign in with
+their own Swiggy account, and the resulting token will then be reused by
+`mcp-remote` for subsequent runs (tokens last 5 days per Swiggy's docs).
+`search_products`/cart tool calls have not yet been tested past that point
+for this reason — that's the concrete first step for PR 2.
