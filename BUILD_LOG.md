@@ -26,3 +26,17 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - Updated the two planned MCP servers to Recipe retrieval + Swiggy Instamart (availability not yet verified).
   - Fixed local repo housekeeping: fast-forwarded stale local `main`, updated `origin` to the renamed repo URL (`richa-sajai_capstone`).
   - Opened PR from `recipe-budget-agent-plan` into `main` for review (not merged).
+
+## 2026-09-17 — Assessment 2 PR 1: Recipe Budget Skill + MCP foundation
+
+- **Time spent:** ~2 hours (MCP research, Skill writing, real handshake-level MCP testing, docs)
+- **Rough tokens used:** ~35-40K
+- **What shipped:**
+  - Wrote `.claude/skills/recipe-budget-agent/SKILL.md`, scoped to one repeatable task: evaluate one missing ingredient for a specific recipe under a budget, decide substitute vs. buy.
+  - Created `.mcp.json` with two MCP servers: `fetch` (`fetch-mcp` via npx) and `swiggy-instamart` (`mcp-remote` bridging to `https://mcp.swiggy.com/im`).
+  - Actually tested both MCPs with real inputs via raw MCP JSON-RPC handshakes (not mocked) — full results in `examples/sample-runs.md`.
+  - Added `reference/substitutions.md` (ingredient-role substitution table) and updated `README.md` to reflect the current Recipe Budget Agent direction and PR 1/PR 2 status.
+- **What didn't work on the first try:**
+  1. The originally-planned official Fetch MCP (`mcp-server-fetch`) is Python/`uv`-only; neither is installed in this environment (only Node/npx). Switched to the real, currently-published Node package `fetch-mcp`, which was then actually tested successfully against a live recipe URL.
+  2. Testing `fetch-mcp` against `sallysbakingaddiction.com` initially returned only ad-tech JavaScript/CSS (the tool's default read window starts at index 0, and this page has ~250,000 characters of tracking scripts before real content). Fixed by probing with a larger `start_index`, which confirmed the tool does return real converted markdown further into the page — documented as a pagination requirement for PR 2's retrieval step, not a tool failure.
+  3. The Swiggy Instamart MCP connection genuinely failed: `mcp-remote` rejects Swiggy's OAuth metadata with `IssuerMismatchError` (RFC 8414 §3.3 issuer mismatch between `https://mcp.swiggy.com/` and `https://mcp.swiggy.com/auth`), before ever reaching the browser login step. Confirmed this isn't a "no browser in this environment" limitation — the failure happens at metadata discovery, is reproducible from the plain command line, and `mcp-remote --help` has no flag to bypass it. Documented in full in `examples/sample-runs.md` as the biggest open risk for PR 2, with next steps (retry a different `mcp-remote` version, or a lower-level OAuth client) rather than a fabricated success.

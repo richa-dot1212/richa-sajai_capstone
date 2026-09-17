@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "npx",
+      "args": ["-y", "fetch-mcp"]
+    },
+    "swiggy-instamart": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.swiggy.com/im"]
+    }
+  }
+}
