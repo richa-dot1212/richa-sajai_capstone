@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Recipe Budget Agent</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main>
+    <h1>Recipe Budget Agent</h1>
+    <p class="subtitle">
+      Give it a recipe, what you're missing, and a budget. It will figure out what to
+      substitute, what to buy on Instamart, and hand you back a personalized recipe.
+    </p>
+
+    <form id="adapt-form">
+      <label>
+        Recipe URL
+        <input type="url" id="recipeUrl" placeholder="https://..." required />
+      </label>
+
+      <label>
+        Ingredients you DON'T have (comma-separated)
+        <input type="text" id="ownedIngredients" placeholder="e.g. flour, sugar, eggs, vanilla extract" />
+        <small>List what you already have -- everything else in the recipe is treated as missing.</small>
+      </label>
+
+      <div class="row">
+        <label>
+          Serving size
+          <input type="number" id="servingSize" min="1" value="12" required />
+        </label>
+        <label>
+          Budget (₹)
+          <input type="number" id="budget" min="0" value="150" required />
+        </label>
+      </div>
+
+      <label>
+        Requested changes (optional)
+        <input type="text" id="requestedChanges" placeholder="e.g. make them smaller, less sweet" />
+      </label>
+
+      <button type="submit" id="adapt-btn">Adapt My Recipe</button>
+    </form>
+
+    <p class="notice" id="notice" hidden>
+      Working on it -- the agent will search Instamart for anything worth buying and add
+      it to your real cart (no checkout), then download your personalized recipe below.
+    </p>
+
+    <section id="progress" hidden>
+      <h2>Progress</h2>
+      <ul id="progress-log"></ul>
+    </section>
+
+    <section id="result" hidden>
+      <h2>Your personalized recipe</h2>
+      <a id="download-link" href="#" target="_blank">Download the recipe document</a>
+      <pre id="result-preview"></pre>
+    </section>
+
+    <section id="error" hidden>
+      <h2>Something went wrong</h2>
+      <p id="error-message"></p>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

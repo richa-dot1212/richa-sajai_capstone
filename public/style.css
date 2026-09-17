@@ -1,0 +1,52 @@
+:root { color-scheme: light dark; }
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 16px;
+  line-height: 1.5;
+}
+h1 { margin-bottom: 4px; }
+.subtitle { color: #666; margin-top: 0; }
+form { display: flex; flex-direction: column; gap: 14px; margin: 24px 0; }
+label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 14px; }
+label small { font-weight: 400; color: #666; }
+input {
+  font-size: 15px;
+  padding: 8px 10px;
+  border: 1px solid #999;
+  border-radius: 6px;
+}
+.row { display: flex; gap: 14px; }
+.row label { flex: 1; }
+button {
+  font-size: 16px;
+  font-weight: 700;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #d9534f;
+  color: white;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.6; cursor: default; }
+.notice { background: #fff3cd; border: 1px solid #ffe08a; padding: 10px 12px; border-radius: 6px; }
+#progress-log { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+#progress-log li { padding: 6px 10px; border-radius: 6px; background: #f2f2f2; font-size: 14px; }
+#progress-log li.phase-reason { background: #e8f0fe; }
+#progress-log li.phase-act { background: #e6f4ea; }
+#progress-log li.phase-observe { background: #fdf1e6; }
+#progress-log li.phase-error { background: #fce8e6; color: #a50e0e; }
+#result pre {
+  white-space: pre-wrap;
+  background: #f7f7f7;
+  padding: 12px;
+  border-radius: 6px;
+  max-height: 400px;
+  overflow: auto;
+}
+#download-link {
+  display: inline-block;
+  margin: 12px 0;
+  font-weight: 700;
+}

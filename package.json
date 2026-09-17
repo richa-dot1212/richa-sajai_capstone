@@ -1,0 +1,14 @@
+{
+  "name": "recipe-budget-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Recipe Budget Agent capstone -- Gemini-powered agent using a custom Skill and the Fetch + Swiggy Instamart MCPs.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "run-agent": "node scripts/run-agent-cli.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
