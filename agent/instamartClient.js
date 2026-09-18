@@ -1,58 +1,16 @@
-// Client for the Swiggy Instamart MCP, talking to the local fix-up proxy
-// from PR 1 (scripts/swiggy-mcp-proxy.js) over its Streamable HTTP
-// endpoint. The proxy is a long-lived local server (it holds the OAuth
-// session), so unlike the Fetch MCP we don't spawn a fresh process per
-// call -- we ensure exactly one proxy is running and talk HTTP to it,
-// reusing the cached token from the user's one-time interactive login.
-const { spawn } = require('child_process');
-const net = require('net');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-
-const PROXY_PORT = 8791;
-const PROXY_URL = `http://127.0.0.1:${PROXY_PORT}/im`;
-const TOKEN_DIR = path.join(os.homedir(), '.mcp-auth', 'mcp-remote-v1');
-
-function isPortOpen(port) {
-  return new Promise((resolve) => {
-    const socket = net.createConnection({ port, host: '127.0.0.1' });
-    socket.once('connect', () => {
-      socket.destroy();
-      resolve(true);
-    });
-    socket.once('error', () => resolve(false));
-    socket.setTimeout(1000, () => {
-      socket.destroy();
-      resolve(false);
-    });
-  });
-}
-
-function findCachedAccessToken() {
-  if (!fs.existsSync(TOKEN_DIR)) return null;
-  const file = fs.readdirSync(TOKEN_DIR).find((f) => f.endsWith('_tokens.json'));
-  if (!file) return null;
-  const data = JSON.parse(fs.readFileSync(path.join(TOKEN_DIR, file), 'utf8'));
-  return data.access_token || null;
-}
-
-async function ensureProxyRunning() {
-  if (await isPortOpen(PROXY_PORT)) return;
-
-  const child = spawn('node', ['scripts/swiggy-mcp-proxy.js'], {
-    cwd: path.join(__dirname, '..'),
-    stdio: 'ignore',
-    detached: true,
-  });
-  child.unref();
-
-  for (let i = 0; i < 20; i++) {
-    await new Promise((r) => setTimeout(r, 500));
-    if (await isPortOpen(PROXY_PORT)) return;
-  }
-  throw new Error('Timed out waiting for the Swiggy MCP proxy to start listening on port ' + PROXY_PORT);
-}
+// Client for the Swiggy Instamart MCP -- calls the real server directly
+// (https://mcp.swiggy.com/im) using our own OAuth tokens from
+// agent/swiggyOAuth.js. Deliberately does not go through mcp-remote or
+// the local scripts/swiggy-mcp-proxy.js: that path only works when the
+// browser doing the login and the process making tool calls are the same
+// machine, which breaks for a real deployment (the browser is the user's
+// laptop; the server is Railway). scripts/swiggy-mcp-proxy.js is kept for
+// local use via Claude Code's own MCP client (.mcp.json), which does need
+// the metadata-fixing workaround since it does generic OAuth discovery;
+// our own app now sidesteps that entirely by using known-correct
+// endpoints and its own token, obtained via a real login through the
+// website.
+const { getAccessToken, RESOURCE } = require('./swiggyOAuth');
 
 class InstamartClient {
   constructor() {
@@ -61,13 +19,7 @@ class InstamartClient {
   }
 
   async _rpc(body) {
-    const token = findCachedAccessToken();
-    if (!token) {
-      throw new Error(
-        'No cached Swiggy OAuth token found. Run `node scripts/swiggy-mcp-proxy.js` in an ' +
-          'interactive terminal once and complete the browser login before running the agent.'
-      );
-    }
+    const token = await getAccessToken();
     const headers = {
       'Content-Type': 'application/json',
       Accept: 'application/json, text/event-stream',
@@ -75,15 +27,12 @@ class InstamartClient {
     };
     if (this.sessionId) headers['Mcp-Session-Id'] = this.sessionId;
 
-    const res = await fetch(PROXY_URL, { method: 'POST', headers, body: JSON.stringify(body) });
+    const res = await fetch(RESOURCE, { method: 'POST', headers, body: JSON.stringify(body) });
     const sid = res.headers.get('mcp-session-id');
     if (sid) this.sessionId = sid;
 
     if (res.status === 401) {
-      throw new Error(
-        'Swiggy Instamart returned 401 Unauthorized -- the cached token may have expired. ' +
-          'Re-run `node scripts/swiggy-mcp-proxy.js` interactively to log in again.'
-      );
+      throw new Error('Swiggy Instamart returned 401 Unauthorized -- your login may have expired. Visit /auth/swiggy/login to reconnect.');
     }
 
     const ct = res.headers.get('content-type') || '';
@@ -100,7 +49,6 @@ class InstamartClient {
   }
 
   async init() {
-    await ensureProxyRunning();
     await this._rpc({
       jsonrpc: '2.0',
       id: this.nextId++,

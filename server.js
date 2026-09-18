@@ -3,11 +3,46 @@ const express = require('express');
 const path = require('path');
 const { randomUUID } = require('crypto');
 const { runWorkflow, STAGES } = require('./agent/workflow');
+const swiggyOAuth = require('./agent/swiggyOAuth');
 
 const app = express();
+// Railway (and most PaaS hosts) terminate TLS at a proxy in front of the
+// container -- without this, req.protocol reports "http" even on the
+// public https:// URL, which would build a redirect_uri Swiggy rejects.
+app.set('trust proxy', true);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/output', express.static(path.join(__dirname, 'output')));
+
+function callbackUrl(req) {
+  return `${req.protocol}://${req.get('host')}/auth/swiggy/callback`;
+}
+
+app.get('/auth/swiggy/status', (req, res) => {
+  res.json({ loggedIn: swiggyOAuth.isLoggedIn() });
+});
+
+app.get('/auth/swiggy/login', async (req, res) => {
+  try {
+    const url = await swiggyOAuth.buildAuthorizeUrl(callbackUrl(req));
+    res.redirect(url);
+  } catch (err) {
+    res.status(500).send(`Could not start Swiggy login: ${err.message}`);
+  }
+});
+
+app.get('/auth/swiggy/callback', async (req, res) => {
+  const { code, state, error, error_description } = req.query;
+  if (error) {
+    return res.status(400).send(`Swiggy login failed: ${error} -- ${error_description || ''}`);
+  }
+  try {
+    await swiggyOAuth.handleCallback(code, state, callbackUrl(req));
+    res.redirect('/?swiggy=connected');
+  } catch (err) {
+    res.status(500).send(`Swiggy login failed: ${err.message}`);
+  }
+});
 
 // In-memory job store -- this is a local single-user demo tool, not a
 // production multi-tenant service.

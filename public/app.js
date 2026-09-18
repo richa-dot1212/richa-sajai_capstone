@@ -14,6 +14,21 @@ async function loadStages() {
 }
 loadStages();
 
+async function loadSwiggyStatus() {
+  const el = document.getElementById('swiggy-status');
+  try {
+    const res = await fetch('/auth/swiggy/status');
+    const { loggedIn } = await res.json();
+    el.innerHTML = loggedIn
+      ? '✅ Connected to Swiggy Instamart'
+      : '⚠️ Not connected to Swiggy yet -- <a href="/auth/swiggy/login">connect your Instamart account</a> before adapting a recipe.';
+    el.className = `swiggy-status ${loggedIn ? 'connected' : 'disconnected'}`;
+  } catch {
+    el.textContent = '';
+  }
+}
+loadSwiggyStatus();
+
 function renderStages(reachedKeys, allDone) {
   stageList.innerHTML = '';
   const lastReached = reachedKeys[reachedKeys.length - 1];
