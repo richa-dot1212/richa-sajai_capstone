@@ -11,11 +11,13 @@ h1 { margin-bottom: 4px; }
 form { display: flex; flex-direction: column; gap: 14px; margin: 24px 0; }
 label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 14px; }
 label small { font-weight: 400; color: #666; }
-input {
+input, textarea {
   font-size: 15px;
   padding: 8px 10px;
   border: 1px solid #999;
   border-radius: 6px;
+  font-family: inherit;
+  resize: vertical;
 }
 .row { display: flex; gap: 14px; }
 .row label { flex: 1; }

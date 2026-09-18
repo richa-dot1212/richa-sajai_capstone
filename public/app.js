@@ -37,8 +37,19 @@ form.addEventListener('submit', async (e) => {
   errorSection.hidden = true;
   renderStages([]);
 
+  const recipeUrl = document.getElementById('recipeUrl').value.trim();
+  const recipeText = document.getElementById('recipeText').value.trim();
+  if (!recipeUrl && !recipeText) {
+    btn.disabled = false;
+    notice.hidden = true;
+    progressSection.hidden = true;
+    showError('Fill in either a recipe URL or paste the recipe text.');
+    return;
+  }
+
   const body = {
-    recipeUrl: document.getElementById('recipeUrl').value,
+    recipeUrl,
+    recipeText,
     missingIngredients: document.getElementById('missingIngredients').value,
     servingSize: document.getElementById('servingSize').value,
     requestedChanges: document.getElementById('requestedChanges').value,

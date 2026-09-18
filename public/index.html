@@ -16,7 +16,13 @@
     <form id="adapt-form">
       <label>
         Recipe URL
-        <input type="url" id="recipeUrl" placeholder="https://..." required />
+        <input type="url" id="recipeUrl" placeholder="https://..." />
+      </label>
+
+      <label>
+        Or paste the recipe text directly
+        <textarea id="recipeText" rows="5" placeholder="Paste ingredients + instructions here if you don't have a URL..."></textarea>
+        <small>Fill in either the URL above or this box -- not both.</small>
       </label>
 
       <label>

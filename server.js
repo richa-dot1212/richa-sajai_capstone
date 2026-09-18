@@ -16,14 +16,15 @@ const jobs = new Map();
 app.get('/api/stages', (req, res) => res.json(STAGES));
 
 app.post('/api/adapt', (req, res) => {
-  const { recipeUrl, missingIngredients, servingSize, requestedChanges, budget } = req.body || {};
-  if (!recipeUrl || !servingSize || !budget) {
-    return res.status(400).json({ error: 'recipeUrl, servingSize, and budget are required' });
+  const { recipeUrl, recipeText, missingIngredients, servingSize, requestedChanges, budget } = req.body || {};
+  if ((!recipeUrl && !recipeText) || !servingSize || !budget) {
+    return res.status(400).json({ error: 'A recipe URL or pasted recipe text, plus servingSize and budget, are required' });
   }
 
   const jobId = randomUUID();
   const input = {
-    recipeUrl,
+    recipeUrl: recipeUrl || null,
+    recipeText: recipeText || null,
     missingIngredients: Array.isArray(missingIngredients)
       ? missingIngredients
       : String(missingIngredients || '').split(',').map((s) => s.trim()).filter(Boolean),

@@ -129,6 +129,14 @@ function runWorkflow(input) {
   };
 
   const promise = (async () => {
+    // Yield one microtask before doing anything else. Without this, the
+    // very first emit()/emitStage() calls below fire synchronously as
+    // part of this runWorkflow() call itself, before the caller (server.js,
+    // the CLI) gets a chance to attach its `.on()` listeners -- so the
+    // first event is silently dropped. This one-line deferral guarantees
+    // listeners are attached first.
+    await Promise.resolve();
+
     const skillText = loadSkill();
     const fetchClient = new McpClient('fetch');
     const instamart = new InstamartClient();
@@ -147,21 +155,27 @@ function runWorkflow(input) {
     try {
       // ==== STAGE 1: Understanding recipe ====
       emitStage('understand');
-      emit('perceive', `Retrieving recipe from ${input.recipeUrl} via Fetch MCP`);
-      await fetchClient.start();
-      const markdown = await fetchRecipeMarkdown(fetchClient, input.recipeUrl, emit);
-      emit('observe', `Retrieved ${markdown.length} characters of recipe content`);
+      let recipeContent;
+      if (input.recipeText) {
+        emit('perceive', 'Using the recipe text you pasted directly (skipping the Fetch MCP)');
+        recipeContent = input.recipeText;
+      } else {
+        emit('perceive', `Retrieving recipe from ${input.recipeUrl} via Fetch MCP`);
+        await fetchClient.start();
+        recipeContent = await fetchRecipeMarkdown(fetchClient, input.recipeUrl, emit);
+        emit('observe', `Retrieved ${recipeContent.length} characters of recipe content`);
+      }
 
       emit('reason', 'Asking Gemini to parse the recipe into structured ingredients/instructions');
       const recipe = await callGemini({
         systemInstruction:
-          'You extract structured recipe data from raw fetched web page text (which may include ' +
-          'leftover boilerplate). Return only the real recipe title, its stated serving size ' +
-          '(a number; guess a reasonable default like 4 if not stated), its ingredient list ' +
-          '(name + quantity as written), and its numbered cooking instructions. If the page does ' +
-          'not actually contain a real recipe, return an empty ingredients array and an empty ' +
-          'instructions array rather than guessing.',
-        prompt: `Recipe page content:\n\n${markdown.slice(0, 45000)}`,
+          'You extract structured recipe data from raw recipe content (which, if fetched from a ' +
+          'web page, may include leftover boilerplate). Return only the real recipe title, its ' +
+          'stated serving size (a number; guess a reasonable default like 4 if not stated), its ' +
+          'ingredient list (name + quantity as written), and its numbered cooking instructions. ' +
+          'If the content does not actually contain a real recipe, return an empty ingredients ' +
+          'array and an empty instructions array rather than guessing.',
+        prompt: `Recipe content:\n\n${recipeContent.slice(0, 45000)}`,
         responseSchema: RECIPE_SCHEMA,
       });
 
@@ -170,7 +184,9 @@ function runWorkflow(input) {
       // with 0 ingredients, which was then silently saved as a document).
       if (!recipe.ingredients || recipe.ingredients.length === 0 || !recipe.title || /unknown recipe/i.test(recipe.title)) {
         throw new RecipeParseError(
-          `Couldn't find a real recipe at that URL. Double-check the link points directly to a recipe page.`
+          input.recipeText
+            ? "Couldn't find a real recipe in the text you pasted. Double-check it includes ingredients and instructions."
+            : "Couldn't find a real recipe at that URL. Double-check the link points directly to a recipe page."
         );
       }
       state.recipe = recipe;
