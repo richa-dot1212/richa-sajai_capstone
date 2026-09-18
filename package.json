@@ -4,6 +4,9 @@
   "private": true,
   "description": "Recipe Budget Agent capstone -- Groq-powered agent using a custom Skill and the Fetch + Swiggy Instamart MCPs.",
   "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "run-agent": "node scripts/run-agent-cli.js"
