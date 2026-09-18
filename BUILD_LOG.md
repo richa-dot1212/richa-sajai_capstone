@@ -2,7 +2,7 @@
 
 One entry per commit: date, time spent, rough tokens used, what shipped. Filled before each commit/push.
 
-**Running total across the whole project (through the latest entry below): ~13 hours, ~235-245K tokens.**
+**Running total across the whole project (through the latest entry below): ~14.5 hours, ~260-275K tokens.**
 
 ---
 
@@ -105,3 +105,16 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
 - **What shipped:**
   - Added a second website input: paste recipe text directly instead of a URL. `server.js` accepts either `recipeUrl` or `recipeText`; `agent/workflow.js` skips the Fetch MCP entirely when text is pasted, going straight to the same Gemini parsing step.
 - **What didn't work on the first try:** testing the new path surfaced a real bug that actually predates today -- `runWorkflow`'s first `emit()`/`emitStage()` calls fire synchronously before the function returns `{emitter, promise}`, so a caller's `.on()` listener (attached right after calling it) misses them. Every previous transcript's first logged line being "Fetched 30001 chars..." instead of "Retrieving recipe..." was this same bug, just cosmetic before. It stopped being cosmetic once the website's stage checklist started depending entirely on 'stage' events -- a dropped first stage would look broken. Fixed with one `await Promise.resolve()` at the top of the workflow's async IIFE, forcing a yield before any listener-dependent work; verified directly that the 'understand' stage and both initial progress events are now captured.
+
+## 2026-09-18 — Switched to Groq; fixed the "assumes you already have the substitute" bug
+
+- **Time spent:** ~1.5 hours (provider switch, two real Groq-specific bugs, a user-reported behavior fix, a search-query bug found while verifying it)
+- **Rough tokens used:** ~25-30K
+- **What shipped:**
+  - Replaced `agent/gemini.js` with `agent/llm.js` calling Groq's OpenAI-compatible API (`openai/gpt-oss-120b` by default) -- Gemini's free-tier daily quota had become a hard blocker for even routine testing. Verified live: real structured JSON-schema output via Groq's `response_format: json_schema` (strict mode), and dramatically faster responses.
+  - Fixed a real, user-reported behavior gap: deciding to "substitute" an ingredient never actually sourced the substitute -- it was only priced for comparison, then silently assumed already owned and skipped the cart entirely. `agent/decision.js` no longer treats "likely already owned" as free; `agent/workflow.js` now always searches Instamart for the substitute and adds whichever product (original or substitute) the decision actually settled on to the real cart. Updated `SKILL.md` to match. Verified live: a missing "butter" now genuinely substitutes with a cheaper product and adds it to the cart.
+  - Running total across the whole project updated below.
+- **What didn't work on the first try, and what was changed:**
+  1. First real live run on Groq failed with a `413`: the on-demand tier caps at 8000 tokens/minute, and the prompt (45,000 characters of recipe content, sized for Gemini's much higher limit) blew past it. Trimmed prompt sizes, and fixed `fetchRecipeMarkdown` to return just the chunk the ingredient lines were actually found in, not that chunk padded with the entire previous chunk.
+  2. That first trim (a blind `slice(0, 12000)` of the old, padded chunk) then failed to find a real recipe at all -- the trimmed window landed in boilerplate before the actual ingredient list. Fixed properly by returning the matched chunk itself.
+  3. While verifying the substitute-purchasing fix, found the actual cart-search was returning the *same* (wrong) product for both the original ingredient and its substitute -- e.g. searching "unsalted margarine (e.g., Earth Balance), melted and cooled" on Instamart. Ingredient names and substitute candidates carry recipe-specific phrasing that makes a poor search query. Added `cleanForSearch()` to strip parenthetical asides and trailing prep clauses before querying; confirmed live that the substitute search then found a genuinely different, cheaper product.
