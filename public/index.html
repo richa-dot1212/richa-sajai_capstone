@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Recipe Budget Agent</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main>
+    <h1>Recipe Budget Agent</h1>
+    <p class="subtitle">
+      Give it a recipe, what you're missing, and a budget. It will figure out what to
+      substitute, what to buy on Instamart, and hand you back a personalized recipe.
+    </p>
+
+    <form id="adapt-form">
+      <label>
+        Recipe URL
+        <input type="url" id="recipeUrl" placeholder="https://..." />
+      </label>
+
+      <label>
+        Or paste the recipe text directly
+        <textarea id="recipeText" rows="5" placeholder="Paste ingredients + instructions here if you don't have a URL..."></textarea>
+        <small>Fill in either the URL above or this box -- not both.</small>
+      </label>
+
+      <label>
+        Ingredients you're missing (comma-separated)
+        <input type="text" id="missingIngredients" placeholder="e.g. baking soda, cornstarch" />
+        <small>Only list what you don't have -- everything else is assumed on hand.</small>
+      </label>
+
+      <div class="row">
+        <label>
+          Serving size
+          <input type="number" id="servingSize" min="1" value="12" required />
+        </label>
+        <label>
+          Budget (₹)
+          <input type="number" id="budget" min="0" value="150" required />
+        </label>
+      </div>
+
+      <label>
+        Requested changes (optional)
+        <input type="text" id="requestedChanges" placeholder="e.g. make them smaller, less sweet" />
+      </label>
+
+      <button type="submit" id="adapt-btn">Adapt My Recipe</button>
+    </form>
+
+    <p class="notice" id="notice" hidden>
+      Working on it -- the agent will search Instamart for anything worth buying and add
+      it to your real cart (no checkout), then download your personalized recipe below.
+    </p>
+
+    <section id="progress" hidden>
+      <h2>Progress</h2>
+      <ul id="stage-list"></ul>
+    </section>
+
+    <section id="result" hidden>
+      <h2>Your personalized recipe</h2>
+      <div id="summary"></div>
+      <a id="download-link" href="#" target="_blank">Download the full recipe document</a>
+    </section>
+
+    <section id="error" hidden>
+      <h2>Something went wrong</h2>
+      <p id="error-message"></p>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

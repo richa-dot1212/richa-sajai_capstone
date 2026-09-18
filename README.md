@@ -1,11 +1,77 @@
 # Recipe Budget Agent
 
-An agent capstone project. A user gives a recipe URL, the ingredients they already have, a desired serving size, any changes they want, and a budget. The agent identifies missing ingredients, evaluates substitutions, compares the cost/practicality of substituting versus buying the original ingredient (using live Swiggy Instamart pricing), adds ingredients it decides to buy to the user's cart, rescales quantities for the target serving size, and generates a personalized recipe document — showing what's on hand, substitutions made, cart additions, and step-by-step instructions.
+Give it a recipe URL, the ingredients you're missing, a target serving size, and a budget. It:
 
-See [plan.md](plan.md) for the full project plan and [BUILD_LOG.md](BUILD_LOG.md) for the build history.
+1. Retrieves the real recipe page and parses it.
+2. Figures out what each missing ingredient does in that specific recipe.
+3. Decides, per ingredient, whether to substitute it or buy the original — checking real live prices on Swiggy Instamart and weighing that against your remaining budget.
+4. Adds anything it decides to buy to your real Instamart cart (never checks out or pays).
+5. Rescales every quantity to your requested serving size.
+6. Saves a personalized recipe document locally, showing what's substituted, what's bought, and the full adjusted instructions.
 
-## Status
+This is the actual capstone project, not a toy exercise — the pieces below (a custom Skill, an LLM-powered agent, two real MCP servers, and a small website) are the real system.
 
-**Assessment 2, PR 1 (foundation):** custom Skill + MCP connections, both verified working end-to-end with real inputs — see `.claude/skills/recipe-budget-agent/SKILL.md`, `.mcp.json`, and `examples/sample-runs.md` for actual test results, including a real authenticated Swiggy Instamart product search. No agent yet.
+## Why an agent, not a script
 
-**Assessment 2, PR 2 (next):** the Gemini-powered agent, its perceive → reason → act → observe loop, and a full end-to-end run.
+The substitute-vs-buy judgment for each ingredient is genuinely ambiguous and budget-dependent — it needs live pricing, a compatibility judgment specific to *this* recipe, and it can require reconsidering an earlier decision if a later purchase would blow the budget. That's real branching, not a fixed pipeline. Everything mechanical (serving-size arithmetic, price comparisons, budget bookkeeping, the final substitute/buy decision itself) is deliberately kept as plain code — see `agent/decision.js` and `agent/servingSize.js` — and the LLM is only used for the two genuinely ambiguous steps: parsing an arbitrary recipe page, and judging each missing ingredient's role/substitute compatibility.
+
+## Quick start (for someone cloning this repo)
+
+**Prerequisites:** Node.js 18+ (tested on v24), a Groq API key ([console.groq.com](https://console.groq.com)), and a Swiggy account (for the Instamart integration).
+
+```bash
+git clone <this-repo>
+cd <repo>
+npm install
+```
+
+Create a `.env` file in the project root:
+
+```
+GROQ_API_KEY=your-key-here
+```
+
+**One-time Swiggy login** (the Instamart MCP needs this before the agent can search products or use your cart):
+
+```bash
+node scripts/swiggy-mcp-proxy.js
+```
+
+This opens a browser — log into your real Swiggy account. Leave that terminal running (or just re-run it later; it reuses the cached login for ~5 days). See `examples/sample-runs.md` for why this proxy exists — it works around a real bug in Swiggy's own OAuth metadata.
+
+**Run the app:**
+
+```bash
+npm start
+```
+
+Open `http://localhost:3000`, fill in a recipe URL, what you're missing, your serving size and budget, and click **Adapt My Recipe**. Progress shows as 4 stages (Understanding recipe → Checking ingredients and budget → Finding/substituting ingredients → Recipe ready), then a summary with a link to the full downloaded document.
+
+You can also run it from the command line without the website:
+
+```bash
+node scripts/run-agent-cli.js "<recipe-url>" "<missing ingredients, comma-separated>" <servings> "<requested changes>" <budget>
+```
+
+## Known limitations
+
+- **The Swiggy Instamart MCP has a real, currently-open upstream bug** (broken OAuth metadata) that this repo works around locally with a proxy — see `examples/sample-runs.md` for details.
+- Earlier development used Gemini, whose free-tier quota (20 requests/day) proved too tight for even routine testing — see `BUILD_LOG.md` for that history. The project now uses Groq (`agent/llm.js`), which is both faster and not similarly constrained.
+- Recipe parsing assumes the URL points at an actual recipe page; a non-recipe page is detected and reported cleanly rather than producing a garbage result (see `agent/workflow.js`'s `RecipeParseError`).
+
+## Project structure
+
+```
+.claude/skills/recipe-budget-agent/SKILL.md   custom Skill: how to evaluate one missing ingredient
+.mcp.json                                     Fetch MCP + Swiggy Instamart MCP config
+scripts/swiggy-mcp-proxy.js                   local fix-up proxy for the Swiggy MCP OAuth bug
+agent/                                        the actual agent: workflow, LLM client (Groq), MCP clients,
+                                               deterministic decision/scaling/self-check logic
+server.js + public/                           the website (interface only -- no decision logic here)
+scripts/run-agent-cli.js                      run the same agent without the website
+reference/substitutions.md                    ingredient-role substitution fallback table
+examples/                                     real test transcripts (not mocked)
+output/                                       generated personalized recipes (gitignored)
+```
+
+See [plan.md](plan.md) for the full project plan and [BUILD_LOG.md](BUILD_LOG.md) for the build history, including a running time/token total across the whole project.

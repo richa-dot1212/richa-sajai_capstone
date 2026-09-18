@@ -62,23 +62,25 @@ equivalent.
 
 ## 4. Compare substituting vs. buying the original
 
-Two real options exist for a missing ingredient:
+The user states exactly which ingredients they're missing — never assume a
+proposed substitute is already sitting in their kitchen just because it's a
+common item. Both real options below mean sourcing something via Instamart:
 
-1. **Substitute** — use a compatible substitute the user may already have, or
-   a cheap/common alternative.
+1. **Substitute** — search Instamart for a compatible, cheap/common
+   alternative and get its live price.
 2. **Buy the original** — search Instamart for the exact ingredient and get
    its live price.
 
 Compare them on:
-- **Cost**: an already-owned substitute is effectively free; a substitute
-  that still needs to be bought is not automatically cheaper than the
-  original — check its real cost too if it isn't already on hand.
+- **Cost**: always use each option's real Instamart price. The substitute
+  is not automatically cheaper than the original — compare the actual
+  numbers, not an assumption.
 - **Live pricing**: always use the Instamart MCP's actual returned price for
-  "buy the original," never estimate or guess a plausible price when a real
+  both options, never estimate or guess a plausible price when a real
   lookup is available.
 - **Practicality**: buying a whole pack of a specialty item for one recipe
-  use is often worse than a reasonable substitute already on hand, even if
-  the specialty item is technically "more correct."
+  use is often worse than a common, cheaper substitute, even if the
+  specialty item is technically "more correct."
 
 ## 5. Factor in the remaining budget, not just this ingredient
 
@@ -92,9 +94,10 @@ recipe, not a per-ingredient allowance. Before deciding to buy:
 
 ## 6. Avoid unnecessary purchases
 
-Do not buy an ingredient just because the budget technically allows it, if a
-substitute the user already has covers the role adequately. The budget being
-available is not itself a reason to spend it.
+Do not buy the pricier of the two real options (original vs. substitute)
+just because the budget technically allows it, if the cheaper, compatible
+option covers the role adequately. The budget being available is not
+itself a reason to spend more than necessary.
 
 ## 7. When no reasonable substitution exists
 

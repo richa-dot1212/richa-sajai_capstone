@@ -1,0 +1,48 @@
+:root { color-scheme: light dark; }
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 16px;
+  line-height: 1.5;
+}
+h1 { margin-bottom: 4px; }
+.subtitle { color: #666; margin-top: 0; }
+form { display: flex; flex-direction: column; gap: 14px; margin: 24px 0; }
+label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 14px; }
+label small { font-weight: 400; color: #666; }
+input, textarea {
+  font-size: 15px;
+  padding: 8px 10px;
+  border: 1px solid #999;
+  border-radius: 6px;
+  font-family: inherit;
+  resize: vertical;
+}
+.row { display: flex; gap: 14px; }
+.row label { flex: 1; }
+button {
+  font-size: 16px;
+  font-weight: 700;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #d9534f;
+  color: white;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.6; cursor: default; }
+.notice { background: #fff3cd; border: 1px solid #ffe08a; padding: 10px 12px; border-radius: 6px; }
+#stage-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+#stage-list li { padding: 10px 14px; border-radius: 6px; font-size: 15px; font-weight: 600; }
+#stage-list li.stage-pending { background: #f2f2f2; color: #999; font-weight: 400; }
+#stage-list li.stage-active { background: #e8f0fe; color: #1a56db; }
+#stage-list li.stage-done { background: #e6f4ea; color: #1e7e34; }
+#summary h3 { margin-bottom: 4px; }
+#summary ul { margin-top: 0; padding-left: 20px; }
+#summary p.empty { color: #666; margin-top: 0; }
+#download-link {
+  display: inline-block;
+  margin: 12px 0;
+  font-weight: 700;
+}
