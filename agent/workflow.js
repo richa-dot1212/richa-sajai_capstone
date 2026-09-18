@@ -6,6 +6,19 @@ const { loadSkill } = require('./skill');
 const { scaleIngredients } = require('./servingSize');
 const { runSelfCheck } = require('./selfCheck');
 const { buildDocument, saveDocument } = require('./documentBuilder');
+const { decideSubstituteOrBuy } = require('./decision');
+
+// The 4 stages shown on the website -- everything underneath (the real
+// perceive/reason/act/observe steps) still happens and is still logged via
+// `emit`, just not rendered as a growing list in the UI.
+const STAGES = [
+  { key: 'understand', label: 'Understanding recipe' },
+  { key: 'check', label: 'Checking ingredients and budget' },
+  { key: 'resolve', label: 'Finding/substituting ingredients' },
+  { key: 'ready', label: 'Recipe ready' },
+];
+
+class RecipeParseError extends Error {}
 
 const RECIPE_SCHEMA = {
   type: 'object',
@@ -28,25 +41,38 @@ const RECIPE_SCHEMA = {
   required: ['title', 'servings', 'ingredients', 'instructions'],
 };
 
-const ROLE_SCHEMA = {
+// One batched call covers every missing ingredient's role/substitute
+// judgment -- this used to be a separate Gemini call per ingredient
+// (plus a second call per ingredient just to decide substitute-vs-buy,
+// which is now plain code in agent/decision.js). Two Gemini calls total
+// per run, regardless of how many ingredients are missing.
+const ROLE_BATCH_SCHEMA = {
   type: 'object',
   properties: {
-    functionalRole: { type: 'string' },
-    substituteCandidate: { type: 'string' },
-    substituteLikelyAlreadyOwned: { type: 'boolean' },
-    substituteRationale: { type: 'string' },
-    recipeImpactIfSubstituted: { type: 'string' },
+    evaluations: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          ingredient: { type: 'string' },
+          functionalRole: { type: 'string' },
+          substituteCandidate: { type: 'string' },
+          substituteLikelyAlreadyOwned: { type: 'boolean' },
+          substituteIsCompatible: { type: 'boolean' },
+          substituteRationale: { type: 'string' },
+        },
+        required: [
+          'ingredient',
+          'functionalRole',
+          'substituteCandidate',
+          'substituteLikelyAlreadyOwned',
+          'substituteIsCompatible',
+          'substituteRationale',
+        ],
+      },
+    },
   },
-  required: ['functionalRole', 'substituteCandidate', 'substituteLikelyAlreadyOwned', 'substituteRationale', 'recipeImpactIfSubstituted'],
-};
-
-const DECISION_SCHEMA = {
-  type: 'object',
-  properties: {
-    decision: { type: 'string', enum: ['substitute', 'buy', 'cannot_complete'] },
-    reasoning: { type: 'string' },
-  },
-  required: ['decision', 'reasoning'],
+  required: ['evaluations'],
 };
 
 /**
@@ -74,18 +100,10 @@ async function fetchRecipeMarkdown(fetchClient, url, emit) {
     const chunkText = contentStart !== -1 ? text.slice(contentStart + 8) : text;
     combined += chunkText;
     emit('observe', `Fetched ${chunkText.length} chars starting at index ${startIndex}`);
-    // Ad-tech boilerplate on some sites contains the word "ingredient" and
-    // stray unit-like substrings inside CSS selectors/JS (a real issue
-    // found in PR 1's testing), so require several markdown-list lines
-    // that actually look like "<amount> <unit> <ingredient>" -- a much
-    // stronger signal that this chunk holds the real ingredient list.
     const ingredientLineMatches = chunkText.match(
       /^\s*[-*\d][.)]?\s+.{0,10}\b(cup|cups|tsp|teaspoon|tbsp|tablespoon|gram|grams|oz|ounce|ounces|ml|lb|pound|pounds)\b/gim
     );
     if (ingredientLineMatches && ingredientLineMatches.length >= 3) {
-      // Ingredients may start near the tail of the previous chunk and
-      // continue into this one -- keep both, not the whole accumulated
-      // (mostly-boilerplate) `combined` string.
       relevantChunk = previousChunk + chunkText;
       break;
     }
@@ -106,6 +124,9 @@ function runWorkflow(input) {
     log.push(entry);
     emitter.emit('progress', entry);
   };
+  const emitStage = (key) => {
+    emitter.emit('stage', key);
+  };
 
   const promise = (async () => {
     const skillText = loadSkill();
@@ -124,33 +145,41 @@ function runWorkflow(input) {
     };
 
     try {
-      // ---- PERCEIVE: retrieve the recipe ----
+      // ==== STAGE 1: Understanding recipe ====
+      emitStage('understand');
       emit('perceive', `Retrieving recipe from ${input.recipeUrl} via Fetch MCP`);
       await fetchClient.start();
       const markdown = await fetchRecipeMarkdown(fetchClient, input.recipeUrl, emit);
       emit('observe', `Retrieved ${markdown.length} characters of recipe content`);
 
-      // ---- REASON: understand the recipe ----
       emit('reason', 'Asking Gemini to parse the recipe into structured ingredients/instructions');
       const recipe = await callGemini({
         systemInstruction:
           'You extract structured recipe data from raw fetched web page text (which may include ' +
           'leftover boilerplate). Return only the real recipe title, its stated serving size ' +
           '(a number; guess a reasonable default like 4 if not stated), its ingredient list ' +
-          '(name + quantity as written), and its numbered cooking instructions.',
+          '(name + quantity as written), and its numbered cooking instructions. If the page does ' +
+          'not actually contain a real recipe, return an empty ingredients array and an empty ' +
+          'instructions array rather than guessing.',
         prompt: `Recipe page content:\n\n${markdown.slice(0, 45000)}`,
         responseSchema: RECIPE_SCHEMA,
       });
+
+      // ---- Graceful handling of garbage/empty AI output (a real failure
+      // mode seen in testing: a non-recipe page produced "Unknown Recipe"
+      // with 0 ingredients, which was then silently saved as a document).
+      if (!recipe.ingredients || recipe.ingredients.length === 0 || !recipe.title || /unknown recipe/i.test(recipe.title)) {
+        throw new RecipeParseError(
+          `Couldn't find a real recipe at that URL. Double-check the link points directly to a recipe page.`
+        );
+      }
       state.recipe = recipe;
       emit('observe', `Parsed recipe "${recipe.title}" (${recipe.ingredients.length} ingredients, serves ${recipe.servings})`);
 
-      // ---- ACT/OBSERVE: diff against owned ingredients ----
-      emit('act', 'Comparing recipe ingredients against ingredients already on hand');
-      const owned = input.ownedIngredients.map((s) => s.toLowerCase().trim());
-      const missing = recipe.ingredients.filter((ing) => {
-        const name = ing.name.toLowerCase();
-        return !owned.some((o) => o && (name.includes(o) || o.includes(name)));
-      });
+      // ==== STAGE 2: Checking ingredients and budget ====
+      emitStage('check');
+      emit('act', "Matching the ingredients you said you're missing against the recipe");
+      const missing = matchMissingIngredients(input.missingIngredients, recipe.ingredients);
       state.missingIngredients = missing;
       emit('observe', `Missing ingredients: ${missing.map((m) => m.name).join(', ') || '(none)'}`);
 
@@ -164,26 +193,45 @@ function runWorkflow(input) {
       }
 
       let remainingBudget = Number(input.budget);
-      const boughtItems = []; // { ingredient, product, cost, cartArgs }
+      const boughtItems = [];
 
-      // ---- Per-ingredient PERCEIVE -> REASON -> ACT -> OBSERVE loop ----
-      for (const ingredient of missing) {
-        emit('reason', `Evaluating missing ingredient "${ingredient.name}" using the Recipe Budget Skill`);
-        const role = await callGemini({
+      // ==== STAGE 3: Finding/substituting ingredients ====
+      emitStage('resolve');
+
+      let evaluations = [];
+      if (missing.length > 0) {
+        emit('reason', `Evaluating all ${missing.length} missing ingredient(s) in one batch using the Recipe Budget Skill`);
+        const batchResult = await callGemini({
           systemInstruction: skillText,
           prompt:
             `Recipe: "${recipe.title}"\nInstructions:\n${recipe.instructions.join('\n')}\n\n` +
-            `Missing ingredient: "${ingredient.name}" (recipe calls for ${ingredient.quantity}).\n` +
-            'Apply the Skill above: identify its functional role in this specific recipe, propose ' +
-            'one concrete substitute candidate, say whether that substitute is something typically ' +
-            'already on hand versus something that would need buying, and describe the recipe-level ' +
-            'impact if substituted.',
-          responseSchema: ROLE_SCHEMA,
+            `Missing ingredients (evaluate each one independently):\n` +
+            missing.map((m) => `- "${m.name}" (recipe calls for ${m.quantity})`).join('\n') +
+            '\n\nApply the Skill above to each: identify its functional role in this specific recipe, ' +
+            'propose one concrete substitute candidate, say whether that substitute is something ' +
+            'typically already on hand versus something that would need buying, and judge whether ' +
+            'the substitute is actually compatible (preserves the role well enough) in this recipe.',
+          responseSchema: ROLE_BATCH_SCHEMA,
         });
-        emit('observe', `Role: ${role.functionalRole}. Candidate substitute: ${role.substituteCandidate}`);
+        evaluations = batchResult.evaluations || [];
+        emit('observe', `Received role/substitute evaluations for ${evaluations.length} ingredient(s)`);
+      }
 
-        // ACT: real Instamart lookups for the original ingredient (and the
-        // substitute too, if it isn't something typically already owned).
+      for (const ingredient of missing) {
+        const targetName = ingredient.name.toLowerCase();
+        const role = evaluations.find((e) => {
+          const evalName = e.ingredient.toLowerCase();
+          return evalName === targetName || evalName.includes(targetName) || targetName.includes(evalName);
+        }) || {
+          functionalRole: 'unclear',
+          substituteCandidate: ingredient.name,
+          substituteLikelyAlreadyOwned: false,
+          substituteIsCompatible: false,
+          substituteRationale: 'No evaluation returned for this ingredient.',
+        };
+        emit('observe', `"${ingredient.name}" role: ${role.functionalRole}. Candidate substitute: ${role.substituteCandidate}`);
+
+        // ACT: real Instamart lookups (plain code, no LLM involved).
         let originalProduct = null;
         let substituteProduct = null;
         if (addressId) {
@@ -204,23 +252,17 @@ function runWorkflow(input) {
           }
         }
 
-        // REASON: real decision, grounded in real prices and real remaining budget.
-        emit('reason', `Deciding substitute-vs-buy for "${ingredient.name}" (remaining budget ₹${remainingBudget})`);
-        const decision = await callGemini({
-          systemInstruction: skillText,
-          prompt:
-            `Missing ingredient: "${ingredient.name}".\n` +
-            `Functional role: ${role.functionalRole}.\n` +
-            `Substitute candidate: ${role.substituteCandidate} (${role.substituteLikelyAlreadyOwned ? 'likely already owned' : 'would need buying'}).\n` +
-            `Recipe impact if substituted: ${role.recipeImpactIfSubstituted}.\n` +
-            `Original ingredient on Instamart: ${originalProduct ? `${originalProduct.displayName}, ₹${originalProduct.offerPrice}` : 'not found'}.\n` +
-            `Substitute on Instamart: ${substituteProduct ? `${substituteProduct.displayName}, ₹${substituteProduct.offerPrice}` : role.substituteLikelyAlreadyOwned ? 'not needed, already owned' : 'not found'}.\n` +
-            `Remaining budget: ₹${remainingBudget} (this is the total left across ALL remaining missing ingredients, not just this one).\n` +
-            'Apply the Skill above. Decide: "substitute", "buy" (the original ingredient), or ' +
-            '"cannot_complete" if neither is reasonable within budget or compatibility.',
-          responseSchema: DECISION_SCHEMA,
+        // REASON: deterministic decision (agent/decision.js) grounded in
+        // Gemini's compatibility judgment plus real prices/budget.
+        const decision = decideSubstituteOrBuy({
+          substituteIsCompatible: role.substituteIsCompatible,
+          substituteCandidate: role.substituteCandidate,
+          substituteLikelyAlreadyOwned: role.substituteLikelyAlreadyOwned,
+          originalProduct,
+          substituteProduct,
+          remainingBudget,
         });
-        emit('observe', `Decision: ${decision.decision} -- ${decision.reasoning}`);
+        emit('observe', `Decision for "${ingredient.name}": ${decision.decision} -- ${decision.reasoning}`);
 
         const record = {
           ingredient: ingredient.name,
@@ -234,26 +276,16 @@ function runWorkflow(input) {
         };
 
         if (decision.decision === 'buy' && originalProduct) {
-          const cost = originalProduct.offerPrice;
-          if (cost > remainingBudget) {
-            // ---- BUDGET LOOP: this purchase would exceed the remaining
-            // budget -- reconsider this ingredient as a substitute instead
-            // of forcing an overspend.
-            emit('reason', `"${ingredient.name}" (₹${cost}) would exceed remaining budget ₹${remainingBudget} -- reconsidering as substitute`);
-            record.decision = role.substituteLikelyAlreadyOwned || substituteProduct ? 'substitute' : 'cannot_complete';
-            record.reasoning += ` Reconsidered: buying would have exceeded the remaining budget (₹${cost} > ₹${remainingBudget}).`;
-          } else {
-            emit('act', `Adding "${originalProduct.displayName}" to Instamart cart`);
-            await instamart.callTool('update_cart', {
-              selectedAddressId: addressId,
-              items: [{ spinId: originalProduct.spinId, skuId: originalProduct.skuId, quantity: 1 }],
-            });
-            emit('observe', `Added to cart: ${originalProduct.displayName} (₹${cost})`);
-            record.product = originalProduct;
-            record.cost = cost;
-            remainingBudget -= cost;
-            boughtItems.push(record);
-          }
+          emit('act', `Adding "${originalProduct.displayName}" to Instamart cart`);
+          await instamart.callTool('update_cart', {
+            selectedAddressId: addressId,
+            items: [{ spinId: originalProduct.spinId, skuId: originalProduct.skuId, quantity: 1 }],
+          });
+          emit('observe', `Added to cart: ${originalProduct.displayName} (₹${originalProduct.offerPrice})`);
+          record.product = originalProduct;
+          record.cost = originalProduct.offerPrice;
+          remainingBudget -= originalProduct.offerPrice;
+          boughtItems.push(record);
         }
 
         state.decisions.push(record);
@@ -261,12 +293,10 @@ function runWorkflow(input) {
 
       state.spentSoFar = boughtItems.reduce((sum, b) => sum + b.cost, 0);
 
-      // ---- Deterministic serving-size scaling (plain code, not the LLM) ----
       emit('act', `Scaling ingredient quantities from ${recipe.servings} to ${input.servingSize} servings`);
       const scaled = scaleIngredients(recipe.ingredients, recipe.servings, input.servingSize);
       state.scaledIngredients = scaled;
 
-      // ---- Self-consistency check, with automatic correction ----
       emit('reason', 'Running self-consistency check on the assembled result');
       const checkResult = runSelfCheck(state, input);
       if (checkResult.corrections.length) {
@@ -275,7 +305,8 @@ function runWorkflow(input) {
         emit('observe', 'Self-check passed with no corrections needed');
       }
 
-      // ---- Generate + save the final document ----
+      // ==== STAGE 4: Recipe ready ====
+      emitStage('ready');
       emit('act', 'Generating personalized recipe document');
       const documentMarkdown = buildDocument(state, input);
       const savedPath = saveDocument(documentMarkdown, recipe.title);
@@ -283,7 +314,8 @@ function runWorkflow(input) {
 
       fetchClient.close();
 
-      return { state, documentMarkdown, savedPath, log };
+      const summary = buildSummary(state);
+      return { state, documentMarkdown, savedPath, summary, log };
     } catch (err) {
       emit('error', err.message);
       try { fetchClient.close(); } catch {}
@@ -292,6 +324,40 @@ function runWorkflow(input) {
   })();
 
   return { emitter, promise, log };
+}
+
+/**
+ * The user now states missing ingredients directly (fixes a real bug: a
+ * fuzzy "owned ingredients" diff previously mismatched "eggs" against
+ * "large egg + 1 egg yolk"). This just needs to find each stated missing
+ * ingredient's corresponding recipe entry for its real quantity.
+ */
+function matchMissingIngredients(missingNames, recipeIngredients) {
+  const result = [];
+  for (const rawName of missingNames) {
+    const name = rawName.toLowerCase().trim();
+    if (!name) continue;
+    const match = recipeIngredients.find((ing) => {
+      const ingName = ing.name.toLowerCase();
+      return ingName.includes(name) || name.includes(ingName);
+    });
+    result.push(match || { name: rawName.trim(), quantity: '' });
+  }
+  return result;
+}
+
+function buildSummary(state) {
+  const substitutions = state.decisions.filter((d) => d.decision === 'substitute');
+  const purchases = state.decisions.filter((d) => d.decision === 'buy' && d.product);
+  const unresolved = state.decisions.filter((d) => d.decision === 'cannot_complete');
+  return {
+    missingIngredients: state.missingIngredients.map((m) => m.name),
+    substitutions: substitutions.map((s) => ({ ingredient: s.ingredient, substitute: s.substituteCandidate, reasoning: s.reasoning })),
+    cartItems: purchases.map((p) => ({ ingredient: p.ingredient, product: p.product.displayName, cost: p.cost })),
+    unresolved: unresolved.map((u) => ({ ingredient: u.ingredient, reasoning: u.reasoning })),
+    totalCost: state.spentSoFar,
+    budget: Number(state.input.budget),
+  };
 }
 
 function extractTopProduct(searchResult) {
@@ -316,4 +382,4 @@ function extractTopProduct(searchResult) {
   }
 }
 
-module.exports = { runWorkflow };
+module.exports = { runWorkflow, RecipeParseError, STAGES };

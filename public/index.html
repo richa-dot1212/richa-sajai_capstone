@@ -20,9 +20,9 @@
       </label>
 
       <label>
-        Ingredients you DON'T have (comma-separated)
-        <input type="text" id="ownedIngredients" placeholder="e.g. flour, sugar, eggs, vanilla extract" />
-        <small>List what you already have -- everything else in the recipe is treated as missing.</small>
+        Ingredients you're missing (comma-separated)
+        <input type="text" id="missingIngredients" placeholder="e.g. baking soda, cornstarch" />
+        <small>Only list what you don't have -- everything else is assumed on hand.</small>
       </label>
 
       <div class="row">
@@ -51,13 +51,13 @@
 
     <section id="progress" hidden>
       <h2>Progress</h2>
-      <ul id="progress-log"></ul>
+      <ul id="stage-list"></ul>
     </section>
 
     <section id="result" hidden>
       <h2>Your personalized recipe</h2>
-      <a id="download-link" href="#" target="_blank">Download the recipe document</a>
-      <pre id="result-preview"></pre>
+      <div id="summary"></div>
+      <a id="download-link" href="#" target="_blank">Download the full recipe document</a>
     </section>
 
     <section id="error" hidden>

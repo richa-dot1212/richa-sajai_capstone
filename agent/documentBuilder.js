@@ -11,7 +11,6 @@ function slugify(title) {
 function buildDocument(state, input) {
   const { recipe, decisions, scaledIngredients, finalInstructions, spentSoFar, budgetExceeded } = state;
 
-  const ownedSet = new Set(input.ownedIngredients.map((s) => s.toLowerCase().trim()));
   const onHand = scaledIngredients.filter(
     (ing) => !decisions.some((d) => d.ingredient.toLowerCase() === ing.name.toLowerCase())
   );

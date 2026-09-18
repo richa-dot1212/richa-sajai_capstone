@@ -2,7 +2,7 @@ require('./agent/env').loadEnv();
 const express = require('express');
 const path = require('path');
 const { randomUUID } = require('crypto');
-const { runWorkflow } = require('./agent/workflow');
+const { runWorkflow, STAGES } = require('./agent/workflow');
 
 const app = express();
 app.use(express.json());
@@ -13,8 +13,10 @@ app.use('/output', express.static(path.join(__dirname, 'output')));
 // production multi-tenant service.
 const jobs = new Map();
 
+app.get('/api/stages', (req, res) => res.json(STAGES));
+
 app.post('/api/adapt', (req, res) => {
-  const { recipeUrl, ownedIngredients, servingSize, requestedChanges, budget } = req.body || {};
+  const { recipeUrl, missingIngredients, servingSize, requestedChanges, budget } = req.body || {};
   if (!recipeUrl || !servingSize || !budget) {
     return res.status(400).json({ error: 'recipeUrl, servingSize, and budget are required' });
   }
@@ -22,24 +24,31 @@ app.post('/api/adapt', (req, res) => {
   const jobId = randomUUID();
   const input = {
     recipeUrl,
-    ownedIngredients: Array.isArray(ownedIngredients)
-      ? ownedIngredients
-      : String(ownedIngredients || '').split(',').map((s) => s.trim()).filter(Boolean),
+    missingIngredients: Array.isArray(missingIngredients)
+      ? missingIngredients
+      : String(missingIngredients || '').split(',').map((s) => s.trim()).filter(Boolean),
     servingSize: Number(servingSize),
     requestedChanges: requestedChanges || '',
     budget: Number(budget),
   };
 
   const { emitter, promise } = runWorkflow(input);
-  const job = { events: [], done: false, error: null, result: null };
+  const job = { stagesReached: [], done: false, error: null, summary: null, savedPath: null };
   jobs.set(jobId, job);
 
-  emitter.on('progress', (e) => job.events.push(e));
+  emitter.on('stage', (key) => {
+    if (!job.stagesReached.includes(key)) job.stagesReached.push(key);
+  });
+  // Granular perceive/reason/act/observe events are intentionally not
+  // forwarded to the browser (the UI shows only the 4 major stages) --
+  // they're still visible in the server's own console for debugging.
+  emitter.on('progress', (e) => console.log(`[${e.phase}] ${e.message}`));
 
   promise
     .then((result) => {
       job.done = true;
-      job.result = { savedPath: path.basename(result.savedPath), documentMarkdown: result.documentMarkdown };
+      job.summary = result.summary;
+      job.savedPath = path.basename(result.savedPath);
     })
     .catch((err) => {
       job.done = true;
@@ -49,7 +58,7 @@ app.post('/api/adapt', (req, res) => {
   res.json({ jobId });
 });
 
-// Server-Sent Events progress stream for one job.
+// Server-Sent Events stream of the 4 major stages (+ the final summary) for one job.
 app.get('/api/adapt/:jobId/stream', (req, res) => {
   const job = jobs.get(req.params.jobId);
   if (!job) return res.status(404).end();
@@ -60,14 +69,14 @@ app.get('/api/adapt/:jobId/stream', (req, res) => {
     Connection: 'keep-alive',
   });
 
-  let sent = 0;
+  let sentStages = 0;
   const send = () => {
-    while (sent < job.events.length) {
-      res.write(`data: ${JSON.stringify(job.events[sent])}\n\n`);
-      sent++;
+    while (sentStages < job.stagesReached.length) {
+      res.write(`data: ${JSON.stringify({ stage: job.stagesReached[sentStages] })}\n\n`);
+      sentStages++;
     }
     if (job.done) {
-      res.write(`event: done\ndata: ${JSON.stringify({ error: job.error, result: job.result })}\n\n`);
+      res.write(`event: done\ndata: ${JSON.stringify({ error: job.error, summary: job.summary, savedPath: job.savedPath })}\n\n`);
       clearInterval(interval);
       res.end();
     }
