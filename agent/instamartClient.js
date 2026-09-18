@@ -13,23 +13,28 @@
 const { getAccessToken, RESOURCE } = require('./swiggyOAuth');
 
 class InstamartClient {
-  constructor() {
-    this.sessionId = null;
+  // userSessionId identifies which visitor's Swiggy login to use (see
+  // agent/session.js) -- required so each visitor to the deployed site
+  // gets their own Instamart account, not one shared global login.
+  constructor(userSessionId) {
+    if (!userSessionId) throw new Error('InstamartClient requires a userSessionId');
+    this.userSessionId = userSessionId;
+    this.mcpSessionId = null; // the MCP protocol's own session id, unrelated to userSessionId
     this.nextId = 1;
   }
 
   async _rpc(body) {
-    const token = await getAccessToken();
+    const token = await getAccessToken(this.userSessionId);
     const headers = {
       'Content-Type': 'application/json',
       Accept: 'application/json, text/event-stream',
       Authorization: `Bearer ${token}`,
     };
-    if (this.sessionId) headers['Mcp-Session-Id'] = this.sessionId;
+    if (this.mcpSessionId) headers['Mcp-Session-Id'] = this.mcpSessionId;
 
     const res = await fetch(RESOURCE, { method: 'POST', headers, body: JSON.stringify(body) });
     const sid = res.headers.get('mcp-session-id');
-    if (sid) this.sessionId = sid;
+    if (sid) this.mcpSessionId = sid;
 
     if (res.status === 401) {
       throw new Error('Swiggy Instamart returned 401 Unauthorized -- your login may have expired. Visit /auth/swiggy/login to reconnect.');

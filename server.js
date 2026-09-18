@@ -4,6 +4,7 @@ const path = require('path');
 const { randomUUID } = require('crypto');
 const { runWorkflow, STAGES } = require('./agent/workflow');
 const swiggyOAuth = require('./agent/swiggyOAuth');
+const { sessionMiddleware } = require('./agent/session');
 
 const app = express();
 // Railway (and most PaaS hosts) terminate TLS at a proxy in front of the
@@ -11,6 +12,11 @@ const app = express();
 // public https:// URL, which would build a redirect_uri Swiggy rejects.
 app.set('trust proxy', true);
 app.use(express.json());
+// Every visitor gets their own session cookie -- this is what makes the
+// Swiggy login per-user instead of one shared global login (a real bug
+// found after deploying: a second visitor saw "already connected" to
+// whoever had connected first).
+app.use(sessionMiddleware);
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/output', express.static(path.join(__dirname, 'output')));
 
@@ -19,12 +25,12 @@ function callbackUrl(req) {
 }
 
 app.get('/auth/swiggy/status', (req, res) => {
-  res.json({ loggedIn: swiggyOAuth.isLoggedIn() });
+  res.json({ loggedIn: swiggyOAuth.isLoggedIn(req.sessionId) });
 });
 
 app.get('/auth/swiggy/login', async (req, res) => {
   try {
-    const url = await swiggyOAuth.buildAuthorizeUrl(callbackUrl(req));
+    const url = await swiggyOAuth.buildAuthorizeUrl(req.sessionId, callbackUrl(req));
     res.redirect(url);
   } catch (err) {
     res.status(500).send(`Could not start Swiggy login: ${err.message}`);
@@ -37,6 +43,10 @@ app.get('/auth/swiggy/callback', async (req, res) => {
     return res.status(400).send(`Swiggy login failed: ${error} -- ${error_description || ''}`);
   }
   try {
+    // Note: handleCallback resolves the session from the `state` value
+    // recorded when the login started, not from req.sessionId here --
+    // that's what makes it robust even if the callback request somehow
+    // arrives without the original cookie.
     await swiggyOAuth.handleCallback(code, state, callbackUrl(req));
     res.redirect('/?swiggy=connected');
   } catch (err) {
@@ -68,7 +78,7 @@ app.post('/api/adapt', (req, res) => {
     budget: Number(budget),
   };
 
-  const { emitter, promise } = runWorkflow(input);
+  const { emitter, promise } = runWorkflow(input, { userSessionId: req.sessionId });
   const job = { stagesReached: [], done: false, error: null, summary: null, savedPath: null };
   jobs.set(jobId, job);
 

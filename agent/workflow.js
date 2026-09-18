@@ -118,7 +118,7 @@ async function fetchRecipeMarkdown(fetchClient, url, emit) {
   return relevantChunk || combined.slice(-CHUNK * 2);
 }
 
-function runWorkflow(input) {
+function runWorkflow(input, context = {}) {
   const emitter = new EventEmitter();
   const log = [];
   const emit = (phase, message, data) => {
@@ -141,7 +141,11 @@ function runWorkflow(input) {
 
     const skillText = loadSkill();
     const fetchClient = new McpClient('fetch');
-    const instamart = new InstamartClient();
+    // Each visitor to the deployed site has their own Swiggy login, keyed
+    // by their own session id (agent/session.js) -- a real bug found
+    // after deploying to Railway, where one shared global login meant
+    // every visitor saw whoever connected first as "already connected".
+    const instamart = new InstamartClient(context.userSessionId || require('crypto').randomUUID());
 
     let addressId = null;
     const state = {

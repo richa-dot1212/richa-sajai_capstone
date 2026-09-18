@@ -15,21 +15,37 @@
 //   register:  https://mcp.swiggy.com/auth/register
 // scripts/swiggy-mcp-proxy.js is still kept for local use via Claude
 // Code's own MCP client (.mcp.json), which does do generic discovery.
+//
+// Tokens are keyed by the visitor's sessionId (agent/session.js) -- a
+// real bug caught after deploying to Railway: with a single global token
+// variable, every visitor to the deployed URL shared one login (whoever
+// connected first), so a second person opening the site saw "already
+// connected" to the FIRST person's Swiggy account. Each session now gets
+// its own isolated tokens.
 const crypto = require('crypto');
 
 const AUTH_BASE = 'https://mcp.swiggy.com/auth';
 const RESOURCE = 'https://mcp.swiggy.com/im';
+const PENDING_TTL_MS = 10 * 60 * 1000; // 10 minutes to complete a login
 
 // In-memory only -- resets on restart/redeploy, which just means logging
 // in again via the website. Fine for a single-instance deployment; a
 // multi-instance or long-lived production deployment would want this
-// persisted instead.
+// persisted instead. The client registration is app-level (shared across
+// everyone); only the issued tokens are per-session.
 let registeredClient = null; // { clientId, redirectUri }
-const pendingLogins = new Map(); // state -> { codeVerifier, createdAt }
-let tokens = null; // { accessToken, refreshToken, expiresAt }
+const pendingLogins = new Map(); // state -> { sessionId, codeVerifier, createdAt }
+const tokensBySession = new Map(); // sessionId -> { accessToken, refreshToken, expiresAt }
 
 function base64url(buffer) {
   return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function purgeExpiredPending() {
+  const cutoff = Date.now() - PENDING_TTL_MS;
+  for (const [state, entry] of pendingLogins) {
+    if (entry.createdAt < cutoff) pendingLogins.delete(state);
+  }
 }
 
 async function ensureClient(redirectUri) {
@@ -53,13 +69,14 @@ async function ensureClient(redirectUri) {
   return data.client_id;
 }
 
-async function buildAuthorizeUrl(redirectUri) {
+async function buildAuthorizeUrl(sessionId, redirectUri) {
+  purgeExpiredPending();
   const clientId = await ensureClient(redirectUri);
 
   const codeVerifier = base64url(crypto.randomBytes(32));
   const codeChallenge = base64url(crypto.createHash('sha256').update(codeVerifier).digest());
   const state = base64url(crypto.randomBytes(16));
-  pendingLogins.set(state, { codeVerifier, createdAt: Date.now() });
+  pendingLogins.set(state, { sessionId, codeVerifier, createdAt: Date.now() });
 
   const url = new URL(`${AUTH_BASE}/authorize`);
   url.searchParams.set('response_type', 'code');
@@ -91,14 +108,15 @@ async function handleCallback(code, state, redirectUri) {
   });
   if (!res.ok) throw new Error(`Swiggy token exchange failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  tokens = {
+  tokensBySession.set(pending.sessionId, {
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
     expiresAt: Date.now() + data.expires_in * 1000,
-  };
+  });
 }
 
-async function refreshIfNeeded() {
+async function refreshIfNeeded(sessionId) {
+  const tokens = tokensBySession.get(sessionId);
   if (!tokens) return;
   if (Date.now() < tokens.expiresAt - 60000) return; // still valid for >60s
   if (!tokens.refreshToken) return; // will fail downstream, prompting re-login
@@ -113,27 +131,28 @@ async function refreshIfNeeded() {
     }),
   });
   if (!res.ok) {
-    tokens = null; // refresh failed -- user needs to log in again
+    tokensBySession.delete(sessionId); // refresh failed -- user needs to log in again
     return;
   }
   const data = await res.json();
-  tokens = {
+  tokensBySession.set(sessionId, {
     accessToken: data.access_token,
     refreshToken: data.refresh_token || tokens.refreshToken,
     expiresAt: Date.now() + data.expires_in * 1000,
-  };
+  });
 }
 
-async function getAccessToken() {
-  await refreshIfNeeded();
+async function getAccessToken(sessionId) {
+  await refreshIfNeeded(sessionId);
+  const tokens = tokensBySession.get(sessionId);
   if (!tokens) {
     throw new Error('Not logged into Swiggy yet -- visit /auth/swiggy/login to connect your account.');
   }
   return tokens.accessToken;
 }
 
-function isLoggedIn() {
-  return !!tokens;
+function isLoggedIn(sessionId) {
+  return tokensBySession.has(sessionId);
 }
 
 module.exports = { buildAuthorizeUrl, handleCallback, getAccessToken, isLoggedIn, RESOURCE };
