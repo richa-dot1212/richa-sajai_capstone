@@ -2,7 +2,7 @@
 
 One entry per commit: date, time spent, rough tokens used, what shipped. Filled before each commit/push.
 
-**Running total across the whole project (through the entry below): ~12 hours, ~225-235K tokens.**
+**Running total across the whole project (through the latest entry below): ~13 hours, ~235-245K tokens.**
 
 ---
 
@@ -97,3 +97,11 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   2. Investigating that, discovered the *new* API key added today also hit the same 20-requests/day free-tier quota (confirmed both a plain call and a structured-output call both 429 on it). So both available keys are exhausted for today -- a full clean live run of the new code is pending a higher-tier key or tomorrow's quota reset, documented honestly rather than faked. The parts that did run today are real evidence the refactor works up through that point; `agent/decision.js` and `agent/servingSize.js` are separately unit-tested.
   3. Found (via code review, before it could cause a real crash) a leftover reference to the just-removed `ownedIngredients` input field in `agent/documentBuilder.js` (dead code that was never actually used in that function) -- removed it.
   4. Found (also via review) that matching Gemini's echoed ingredient names back from the new batched call used exact string equality, which is fragile if the model rephrases a name slightly. Widened it to the same substring-based matching already used elsewhere in the codebase.
+
+## 2026-09-18 — Paste-recipe-text input + a real event-ordering bug fix
+
+- **Time spent:** ~40 min
+- **Rough tokens used:** ~10-12K
+- **What shipped:**
+  - Added a second website input: paste recipe text directly instead of a URL. `server.js` accepts either `recipeUrl` or `recipeText`; `agent/workflow.js` skips the Fetch MCP entirely when text is pasted, going straight to the same Gemini parsing step.
+- **What didn't work on the first try:** testing the new path surfaced a real bug that actually predates today -- `runWorkflow`'s first `emit()`/`emitStage()` calls fire synchronously before the function returns `{emitter, promise}`, so a caller's `.on()` listener (attached right after calling it) misses them. Every previous transcript's first logged line being "Fetched 30001 chars..." instead of "Retrieving recipe..." was this same bug, just cosmetic before. It stopped being cosmetic once the website's stage checklist started depending entirely on 'stage' events -- a dropped first stage would look broken. Fixed with one `await Promise.resolve()` at the top of the workflow's async IIFE, forcing a yield before any listener-dependent work; verified directly that the 'understand' stage and both initial progress events are now captured.
