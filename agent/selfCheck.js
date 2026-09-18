@@ -28,10 +28,11 @@ function runSelfCheck(state, input) {
     state.scaledIngredients = recomputed;
   }
 
-  // 3. Every purchased ingredient must appear in the final ingredient list.
+  // 3. Every purchased ingredient (bought as-is, or substituted and
+  // actually sourced via Instamart) must appear in the final ingredient list.
   const scaledNames = state.scaledIngredients.map((i) => i.name.toLowerCase());
   for (const d of state.decisions) {
-    if (d.decision === 'buy' && d.product && !scaledNames.includes(d.ingredient.toLowerCase())) {
+    if ((d.decision === 'buy' || d.decision === 'substitute') && d.product && !scaledNames.includes(d.ingredient.toLowerCase())) {
       corrections.push(`Purchased ingredient "${d.ingredient}" was missing from the final ingredient list -- re-added`);
       state.scaledIngredients.push({ name: d.ingredient, quantity: d.quantity, originalQuantity: d.quantity });
     }

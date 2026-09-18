@@ -1,7 +1,7 @@
 const { EventEmitter } = require('events');
 const { McpClient } = require('./mcpClient');
 const { InstamartClient } = require('./instamartClient');
-const { callGemini } = require('./gemini');
+const { callLLM } = require('./llm');
 const { loadSkill } = require('./skill');
 const { scaleIngredients } = require('./servingSize');
 const { runSelfCheck } = require('./selfCheck');
@@ -42,9 +42,9 @@ const RECIPE_SCHEMA = {
 };
 
 // One batched call covers every missing ingredient's role/substitute
-// judgment -- this used to be a separate Gemini call per ingredient
+// judgment -- this used to be a separate LLM call per ingredient
 // (plus a second call per ingredient just to decide substitute-vs-buy,
-// which is now plain code in agent/decision.js). Two Gemini calls total
+// which is now plain code in agent/decision.js). Two LLM calls total
 // per run, regardless of how many ingredients are missing.
 const ROLE_BATCH_SCHEMA = {
   type: 'object',
@@ -57,7 +57,6 @@ const ROLE_BATCH_SCHEMA = {
           ingredient: { type: 'string' },
           functionalRole: { type: 'string' },
           substituteCandidate: { type: 'string' },
-          substituteLikelyAlreadyOwned: { type: 'boolean' },
           substituteIsCompatible: { type: 'boolean' },
           substituteRationale: { type: 'string' },
         },
@@ -65,7 +64,6 @@ const ROLE_BATCH_SCHEMA = {
           'ingredient',
           'functionalRole',
           'substituteCandidate',
-          'substituteLikelyAlreadyOwned',
           'substituteIsCompatible',
           'substituteRationale',
         ],
@@ -104,7 +102,11 @@ async function fetchRecipeMarkdown(fetchClient, url, emit) {
       /^\s*[-*\d][.)]?\s+.{0,10}\b(cup|cups|tsp|teaspoon|tbsp|tablespoon|gram|grams|oz|ounce|ounces|ml|lb|pound|pounds)\b/gim
     );
     if (ingredientLineMatches && ingredientLineMatches.length >= 3) {
-      relevantChunk = previousChunk + chunkText;
+      // Use just the chunk the ingredient lines actually matched in (not
+      // padded with the whole previous chunk) -- keeps the LLM prompt
+      // small enough for Groq's per-minute token limit while still
+      // reliably including the real ingredient list.
+      relevantChunk = chunkText;
       break;
     }
     const remainingMatch = text.match(/Remaining content length: (\d+)/);
@@ -166,8 +168,8 @@ function runWorkflow(input) {
         emit('observe', `Retrieved ${recipeContent.length} characters of recipe content`);
       }
 
-      emit('reason', 'Asking Gemini to parse the recipe into structured ingredients/instructions');
-      const recipe = await callGemini({
+      emit('reason', 'Asking the LLM to parse the recipe into structured ingredients/instructions');
+      const recipe = await callLLM({
         systemInstruction:
           'You extract structured recipe data from raw recipe content (which, if fetched from a ' +
           'web page, may include leftover boilerplate). Return only the real recipe title, its ' +
@@ -175,7 +177,7 @@ function runWorkflow(input) {
           'ingredient list (name + quantity as written), and its numbered cooking instructions. ' +
           'If the content does not actually contain a real recipe, return an empty ingredients ' +
           'array and an empty instructions array rather than guessing.',
-        prompt: `Recipe content:\n\n${recipeContent.slice(0, 45000)}`,
+        prompt: `Recipe content:\n\n${recipeContent.slice(0, 12000)}`,
         responseSchema: RECIPE_SCHEMA,
       });
 
@@ -217,16 +219,16 @@ function runWorkflow(input) {
       let evaluations = [];
       if (missing.length > 0) {
         emit('reason', `Evaluating all ${missing.length} missing ingredient(s) in one batch using the Recipe Budget Skill`);
-        const batchResult = await callGemini({
+        const batchResult = await callLLM({
           systemInstruction: skillText,
           prompt:
-            `Recipe: "${recipe.title}"\nInstructions:\n${recipe.instructions.join('\n')}\n\n` +
+            `Recipe: "${recipe.title}"\nInstructions:\n${recipe.instructions.join('\n').slice(0, 3000)}\n\n` +
             `Missing ingredients (evaluate each one independently):\n` +
             missing.map((m) => `- "${m.name}" (recipe calls for ${m.quantity})`).join('\n') +
             '\n\nApply the Skill above to each: identify its functional role in this specific recipe, ' +
-            'propose one concrete substitute candidate, say whether that substitute is something ' +
-            'typically already on hand versus something that would need buying, and judge whether ' +
-            'the substitute is actually compatible (preserves the role well enough) in this recipe.',
+            'propose one concrete substitute candidate, and judge whether the substitute is actually ' +
+            'compatible (preserves the role well enough) in this recipe. Every substitute will be ' +
+            'sourced fresh via Instamart -- never assume the user already has it on hand.',
           responseSchema: ROLE_BATCH_SCHEMA,
         });
         evaluations = batchResult.evaluations || [];
@@ -241,7 +243,6 @@ function runWorkflow(input) {
         }) || {
           functionalRole: 'unclear',
           substituteCandidate: ingredient.name,
-          substituteLikelyAlreadyOwned: false,
           substituteIsCompatible: false,
           substituteRationale: 'No evaluation returned for this ingredient.',
         };
@@ -251,29 +252,32 @@ function runWorkflow(input) {
         let originalProduct = null;
         let substituteProduct = null;
         if (addressId) {
-          emit('act', `Searching Instamart for "${ingredient.name}"`);
-          const searchRes = await instamart.callTool('search_products', { query: ingredient.name, addressId });
+          const originalQuery = cleanForSearch(ingredient.name);
+          emit('act', `Searching Instamart for "${originalQuery}"`);
+          const searchRes = await instamart.callTool('search_products', { query: originalQuery, addressId });
           originalProduct = extractTopProduct(searchRes);
           emit('observe', originalProduct
             ? `Found "${originalProduct.displayName}" for ₹${originalProduct.offerPrice}`
             : 'No matching product found on Instamart');
 
-          if (!role.substituteLikelyAlreadyOwned) {
-            emit('act', `Searching Instamart for substitute "${role.substituteCandidate}"`);
-            const subSearchRes = await instamart.callTool('search_products', { query: role.substituteCandidate, addressId });
-            substituteProduct = extractTopProduct(subSearchRes);
-            emit('observe', substituteProduct
-              ? `Found substitute "${substituteProduct.displayName}" for ₹${substituteProduct.offerPrice}`
-              : 'No matching substitute product found on Instamart');
-          }
+          // Always search for the substitute too -- never assume the user
+          // already has it. They stated exactly what's missing, so a
+          // substitute for a missing ingredient needs sourcing just like
+          // the original would.
+          const substituteQuery = cleanForSearch(role.substituteCandidate);
+          emit('act', `Searching Instamart for substitute "${substituteQuery}"`);
+          const subSearchRes = await instamart.callTool('search_products', { query: substituteQuery, addressId });
+          substituteProduct = extractTopProduct(subSearchRes);
+          emit('observe', substituteProduct
+            ? `Found substitute "${substituteProduct.displayName}" for ₹${substituteProduct.offerPrice}`
+            : 'No matching substitute product found on Instamart');
         }
 
         // REASON: deterministic decision (agent/decision.js) grounded in
-        // Gemini's compatibility judgment plus real prices/budget.
+        // the LLM's compatibility judgment plus real prices/budget.
         const decision = decideSubstituteOrBuy({
           substituteIsCompatible: role.substituteIsCompatible,
           substituteCandidate: role.substituteCandidate,
-          substituteLikelyAlreadyOwned: role.substituteLikelyAlreadyOwned,
           originalProduct,
           substituteProduct,
           remainingBudget,
@@ -291,16 +295,24 @@ function runWorkflow(input) {
           cost: 0,
         };
 
-        if (decision.decision === 'buy' && originalProduct) {
-          emit('act', `Adding "${originalProduct.displayName}" to Instamart cart`);
+        // ACT: whichever product the decision settled on -- the original
+        // if buying, or the substitute if substituting -- actually gets
+        // added to the real Instamart cart. Substituting is never treated
+        // as "you already have it"; it's a real product to source too.
+        const productToBuy = decision.decision === 'buy' ? originalProduct
+          : decision.decision === 'substitute' ? substituteProduct
+          : null;
+
+        if (productToBuy) {
+          emit('act', `Adding "${productToBuy.displayName}" to Instamart cart`);
           await instamart.callTool('update_cart', {
             selectedAddressId: addressId,
-            items: [{ spinId: originalProduct.spinId, skuId: originalProduct.skuId, quantity: 1 }],
+            items: [{ spinId: productToBuy.spinId, skuId: productToBuy.skuId, quantity: 1 }],
           });
-          emit('observe', `Added to cart: ${originalProduct.displayName} (₹${originalProduct.offerPrice})`);
-          record.product = originalProduct;
-          record.cost = originalProduct.offerPrice;
-          remainingBudget -= originalProduct.offerPrice;
+          emit('observe', `Added to cart: ${productToBuy.displayName} (₹${productToBuy.offerPrice})`);
+          record.product = productToBuy;
+          record.cost = productToBuy.offerPrice;
+          remainingBudget -= productToBuy.offerPrice;
           boughtItems.push(record);
         }
 
@@ -364,7 +376,10 @@ function matchMissingIngredients(missingNames, recipeIngredients) {
 
 function buildSummary(state) {
   const substitutions = state.decisions.filter((d) => d.decision === 'substitute');
-  const purchases = state.decisions.filter((d) => d.decision === 'buy' && d.product);
+  // Both a literal "buy the original" and a "substitute" that was actually
+  // sourced via Instamart show up in the cart summary -- substituting
+  // never means "assume it's already in the kitchen."
+  const purchases = state.decisions.filter((d) => (d.decision === 'buy' || d.decision === 'substitute') && d.product);
   const unresolved = state.decisions.filter((d) => d.decision === 'cannot_complete');
   return {
     missingIngredients: state.missingIngredients.map((m) => m.name),
@@ -374,6 +389,21 @@ function buildSummary(state) {
     totalCost: state.spentSoFar,
     budget: Number(state.input.budget),
   };
+}
+
+// Ingredient names and substitute candidates often carry recipe-specific
+// phrasing (prep notes, brand suggestions) that makes a poor e-commerce
+// search query -- e.g. "unsalted butter, melted & cooled for 5 minutes"
+// or "unsalted margarine (e.g., Earth Balance), melted and cooled". A real
+// bug: searching that verbatim for a substitute can return the exact same
+// (wrong) product as the original ingredient's own noisy query. Strip
+// prep-instruction clauses and parenthetical asides before searching, per
+// the Skill's own search-term guidance.
+function cleanForSearch(name) {
+  return name
+    .replace(/\([^)]*\)/g, '') // parenthetical brand suggestions, e.g. "(e.g., Earth Balance)"
+    .split(',')[0] // drop trailing prep clauses after the first comma
+    .trim();
 }
 
 function extractTopProduct(searchResult) {

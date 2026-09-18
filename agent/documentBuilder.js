@@ -16,7 +16,10 @@ function buildDocument(state, input) {
   );
 
   const substitutions = decisions.filter((d) => d.decision === 'substitute');
-  const purchases = decisions.filter((d) => d.decision === 'buy' && d.product);
+  // Both a literal "buy the original" and a "substitute" that was actually
+  // sourced via Instamart appear here -- substituting never means "assume
+  // it's already in the kitchen."
+  const purchases = decisions.filter((d) => (d.decision === 'buy' || d.decision === 'substitute') && d.product);
   const unresolved = decisions.filter((d) => d.decision === 'cannot_complete');
 
   const lines = [];
