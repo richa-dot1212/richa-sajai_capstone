@@ -416,8 +416,10 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 }
 
 .ingredients-columns__right {
-  background: var(--gingham-band);
-  border-radius: var(--radius-card);
+  background-image: url('images/torn-paper-bg.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 112% 112%;
   padding: clamp(24px, 3.5vw, 36px);
 }
 
@@ -447,16 +449,14 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 .ingredient-list .note.bought { background: #e4efe1; color: #3f6b3a; }
 .ingredient-list .note.unresolved { background: var(--error-tint); color: var(--error); }
 
-/* Torn notebook-paper "added to cart" note -- a jagged, all-around torn
-   silhouette (not just a perforated left edge) plus a slight rotation,
-   so it reads as a real scrap of paper sitting on the gingham backdrop. */
+/* Torn notebook-paper "added to cart" note */
 .cart-note {
   position: relative;
   background: var(--paper-note);
-  padding: 40px clamp(30px, 5vw, 50px) 38px;
-  margin: 14px 6px 26px;
-  box-shadow: 0 14px 28px -14px rgba(61, 43, 31, 0.45);
-  transform: rotate(-1.1deg);
+  padding: 40px clamp(28px, 5vw, 48px) 36px 56px;
+  margin: 8px 0 24px;
+  border-radius: 2px;
+  box-shadow: 0 10px 24px -14px rgba(61, 43, 31, 0.35);
   background-image: repeating-linear-gradient(
     to bottom,
     transparent,
@@ -464,12 +464,16 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
     var(--paper-note-line) 31px
   );
   background-position: 0 54px;
-  clip-path: polygon(
-    0% 2%, 5% 0%, 11% 3%, 17% 1%, 23% 4%, 30% 1%, 37% 3%, 44% 0%, 51% 3%, 58% 1%, 65% 4%, 72% 1%, 79% 3%, 86% 0%, 93% 2%, 100% 0%,
-    99% 8%, 100% 16%, 98% 24%, 100% 32%, 99% 40%, 100% 48%, 98% 56%, 100% 64%, 99% 72%, 100% 80%, 98% 88%, 100% 96%, 100% 100%,
-    94% 98%, 88% 100%, 82% 97%, 75% 100%, 68% 98%, 61% 100%, 54% 97%, 47% 100%, 40% 98%, 33% 100%, 26% 97%, 19% 100%, 12% 98%, 5% 100%, 0% 98%,
-    2% 91%, 0% 84%, 3% 77%, 0% 70%, 2% 63%, 0% 56%, 3% 49%, 0% 42%, 2% 35%, 0% 28%, 3% 21%, 0% 14%, 2% 7%
-  );
+}
+.cart-note::before {
+  /* torn/perforated left edge */
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 18px;
+  background-image: radial-gradient(circle at 4px 12px, var(--paper) 3px, transparent 3.5px);
+  background-size: 100% 24px;
+  background-repeat: repeat-y;
+  background-color: var(--paper-note);
+  clip-path: polygon(0% 2%, 100% 0%, 100% 100%, 0% 98%, 4% 92%, 0% 84%, 5% 78%, 0% 70%, 4% 63%, 0% 55%, 5% 48%, 0% 40%, 4% 33%, 0% 25%, 5% 18%, 0% 10%);
 }
 .cart-note h3 {
   margin: 0 0 6px; font-family: var(--font-title); font-size: 2.1rem; color: var(--accent-strong); font-weight: 700;
