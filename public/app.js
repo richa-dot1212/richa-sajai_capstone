@@ -33,7 +33,6 @@ function showView(id) {
 
 const form = document.getElementById('adapt-form');
 const btn = document.getElementById('adapt-btn');
-const notice = document.getElementById('notice');
 const stageList = document.getElementById('stage-list');
 
 let STAGES = [];
@@ -112,8 +111,6 @@ form.addEventListener('submit', async (e) => {
   }
 
   showView('view-progress');
-  notice.hidden = false;
-  notice.innerHTML = `${icon('checkCircle')}<span>The agent will search Instamart for anything worth buying and add it to your real cart (no checkout), then your personalized recipe will be ready to download.</span>`;
   renderStages([]);
 
   const body = {

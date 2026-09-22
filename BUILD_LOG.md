@@ -226,3 +226,13 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - Made Anaktoria the site's main body font (`--font-body`), not just an accent -- it now cascades into every ingredient/direction list, label, input, and button, with Karla kept as a fallback in the font stack so any glyph Anaktoria's ancient-scripts-oriented character set doesn't cover (e.g. the ₹ sign) still renders from Karla automatically.
   - Built a pot-fill progress animation entirely in code (inline SVG matching the illustrations' navy line-art style, no new assets needed): a liquid rect clipped to the pot's interior shape animates its height as stages complete, reaching full at the last stage; small animated steam wisps for a bit of life. Wired into the existing `renderStages()` call in `app.js` via `updatePotFill()`, driven by the same stage data already being tracked -- no change to the real workflow logic.
 - **What didn't work on the first try:** nothing broke -- verified CSS brace balance and a handful of live asset requests (site, swiggy logo, fonts) after each pass before committing.
+
+## 2026-09-23 -- Revert Anaktoria-everywhere, bigger logo, remove notice box, note contrast fix (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~6-7K
+- **What shipped:** user tried Anaktoria as the site-wide body font and didn't like it for dense/functional text -- reverted `--font-body` back to Karla (the readable default) and kept Anaktoria only as `--font-accent`, applied narrowly to genuinely decorative small text (the home subtitle, the "Working on it" kicker on the progress screen) per their explicit split. All form inputs, the ingredient/directions lists, and the "Connect to Swiggy"/"Adapt My Recipe" buttons are back on Karla for readability.
+  - Enlarged the Swiggy logo in the cart note (28px -> 44px) -- it was too small to read clearly.
+  - Removed the blue "notice" callout box from the progress screen entirely (unnecessary per feedback) -- deleted its markup, CSS, and the two `app.js` lines that populated it.
+  - Fixed the Instamart cart note blending into the page background -- `--paper-note` was too close to `--paper` (both pale cream); changed it to a more distinct manila-paper tone (`#f7ecc4`, darker line color to match) so the note visibly stands out as its own object on the page.
+- **What didn't work on the first try:** nothing broke -- straightforward reverts/tweaks, verified CSS integrity and a live request before committing.

@@ -8,8 +8,8 @@
 
   --paper: #fbf3e2;
   --surface: #fffcf6;
-  --paper-note: #f5efe0;
-  --paper-note-line: #cdd6d8;
+  --paper-note: #f7ecc4;
+  --paper-note-line: #d8c99a;
 
   --ink: #3d2b1f;
   --ink-soft: #7a6a57;
@@ -28,7 +28,8 @@
   --error-border: #e8c9ac;
 
   --font-title: 'Slackey', 'Caveat', 'Segoe Script', cursive;
-  --font-body: 'Anaktoria', 'Karla', system-ui, serif;
+  --font-accent: 'Anaktoria', Georgia, 'Times New Roman', serif;
+  --font-body: 'Karla', system-ui, sans-serif;
 
   --radius-card: 20px;
   --radius-control: 10px;
@@ -67,11 +68,12 @@ body {
 .icon { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
 .kicker {
   margin: 0 0 6px;
-  font-size: 12.5px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-accent);
+  font-size: 14px;
+  letter-spacing: 0.02em;
   color: var(--accent-strong);
   font-weight: 700;
+  font-style: italic;
 }
 
 /* ---------- Full-screen view mechanics ---------- */
@@ -148,6 +150,7 @@ body {
   max-width: 48ch;
   color: var(--ink-soft);
   font-size: 18px;
+  font-family: var(--font-accent);
   font-style: italic;
 }
 
@@ -309,14 +312,6 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   .pot-steam { animation: none; }
 }
 
-.notice {
-  display: flex; gap: 10px; align-items: flex-start; text-align: left;
-  background: var(--accent-tint); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
-  color: var(--accent-strong); padding: 14px 16px; border-radius: var(--radius-control);
-  font-size: 13.5px; margin: 0 0 24px;
-}
-.notice .icon { flex-shrink: 0; margin-top: 1px; }
-
 .stage-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; text-align: left; }
 .stage-list li { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 0 12px 4px; font-size: 16px; font-weight: 600; color: var(--ink-faint); }
 .stage-list li::before {
@@ -417,12 +412,12 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 }
 
 .cart-note__logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   object-fit: cover;
   vertical-align: middle;
-  margin-right: 8px;
+  margin-right: 10px;
 }
 
 /* Ingredients list */
