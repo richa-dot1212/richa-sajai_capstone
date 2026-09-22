@@ -89,26 +89,6 @@ body {
 }
 .card h2 { font-size: 1.4rem; margin: 0 0 14px; }
 
-/* Scrapbook-card effect: a gingham-backed card peeks out from behind the
-   opaque form card, rotated slightly -- confined to the card itself,
-   never a full-page pattern (kept text fully readable on solid paper). */
-.recipe-card {
-  position: relative;
-  z-index: 1;
-}
-.recipe-card::before {
-  content: '';
-  position: absolute;
-  inset: -14px -10px -10px -14px;
-  background-image: var(--gingham);
-  background-repeat: repeat;
-  background-size: 170px auto;
-  border-radius: var(--radius-card);
-  transform: rotate(-2.5deg);
-  box-shadow: var(--shadow-card);
-  z-index: -1;
-}
-
 /* ================================================================
    SCREEN 1 -- input
    ================================================================ */
