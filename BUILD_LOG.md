@@ -243,3 +243,10 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
 - **Rough tokens used:** ~3-4K
 - **What shipped:** the cart note's manila-yellow paper tone from the last contrast fix still read as too yellow -- changed `--paper-note` to a much whiter off-white (`#fefdf8`) with a lighter line color, so the note now clearly reads as a distinct white paper object against the warmer cream page background.
 - **What didn't work on the first try / open item:** attempted to source the real SwungNote font file (now that the user confirmed this is a private, non-commercial project, satisfying its "personal use" license) from several free-font mirror sites -- blogfonts.com and dafontfree.net are Cloudflare-gated against scripted fetches, and onlinewebfonts.com hides its real download link behind obfuscated JS rather than a direct URL (also a signal its redistribution rights are murkier than a real foundry/library source). Asked the user to download the file themselves and hand it over, the same pattern already working for the illustrations and Swiggy logo, rather than fight an untrustworthy source.
+
+## 2026-09-23 -- Switch title font to Swung Note (same branch)
+
+- **Time spent:** ~10 min
+- **Rough tokens used:** ~3-4K
+- **What shipped:** user downloaded and provided the actual Swung Note `.ttf` file themselves (after I couldn't source it cleanly from any scriptable mirror) and confirmed this is a private, non-commercial project -- which satisfies the font's real "free for personal use" license from its original designer. Converted to `.woff2` with `ttf2woff2` (same as Anaktoria) and set it as the primary `--font-title`, ahead of Slackey in the fallback chain (kept as a safety net, not removed).
+- **What didn't work on the first try:** nothing broke -- confirmed the new font file serves with a real 200 before committing.

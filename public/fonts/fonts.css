@@ -21,6 +21,16 @@
   src: url('slackey-regular.woff2') format('woff2');
 }
 @font-face {
+  /* Swung Note -- free for personal use per its designer; used here only
+     because this is a private, non-commercial project (confirmed with
+     the project owner). Not for reuse in a commercial deployment. */
+  font-family: 'Swung Note';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('swungnote-regular.woff2') format('woff2');
+}
+@font-face {
   /* Anaktoria, George Douros -- public domain / free for any use,
      https://fontlibrary.org/en/font/anaktoria-textfonts */
   font-family: 'Anaktoria';
