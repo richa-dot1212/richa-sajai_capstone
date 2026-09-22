@@ -196,3 +196,10 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
 - **Rough tokens used:** ~4-5K
 - **What shipped:** user supplied the 4 hand-drawn doodle PNGs (cookie, pancake stack, cake slice, macaron) referenced in the v4 plan. Verified each file's PNG header directly (`colorType` byte in the IHDR chunk) before use -- all 4 already have a real alpha channel (RGBA), so the planned white-background-stripping script wasn't needed, matching what the user said. Copied into `public/images/illustrations/` and wired into the input screen's hero via the `.hero-illustration` classes already added in the v4 CSS pass.
 - **What didn't work on the first try:** the images arrived as inline message content with no file path the first time, so I couldn't act on them directly (no tool saves pasted image content to disk) -- asked the user to save them and point me to the folder, which they did (their 4 most recent Downloads).
+
+## 2026-09-23 -- Full-bleed gingham header, 2-column form (same branch)
+
+- **Time spent:** ~25 min
+- **Rough tokens used:** ~7-8K
+- **What shipped:** per feedback against a new reference screenshot: the gingham band was an inset rounded box with cream margins showing on the sides -- moved it outside the page's padded wrapper (`.view-input { padding: 0 }`, hero is now a direct full-width child of the view) so it spans edge-to-edge like a real page header, matching the reference. Restructured the input form from a single stacked column into two columns matching the reference's composition exactly: "The recipe" (URL/paste-text) on the left, everything else (What's missing, Servings & budget, Anything else, submit button) stacked in a column on the right.
+- **What didn't work on the first try:** nothing broke -- straightforward CSS restructuring, verified the brace count and a live `curl` after.

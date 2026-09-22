@@ -107,17 +107,19 @@ body {
 /* ================================================================
    SCREEN 1 -- input
    ================================================================ */
+.view-input { padding: 0; }
+
 .view-input__layout {
-  max-width: 900px;
+  max-width: 1400px;
   margin: 0 auto;
+  padding: clamp(24px, 4vw, 56px);
 }
 
 .view-input__hero {
   position: relative;
   text-align: center;
-  border-radius: var(--radius-card);
-  padding: clamp(32px, 6vw, 56px) clamp(20px, 5vw, 40px);
-  margin-bottom: clamp(28px, 5vw, 48px);
+  width: 100%;
+  padding: clamp(40px, 7vw, 64px) clamp(20px, 5vw, 40px);
 }
 
 .hero-illustration {
@@ -175,7 +177,14 @@ body {
 .swiggy-step.is-connected .icon { color: var(--accent-strong); }
 .swiggy-step.is-connected span { font-weight: 700; font-size: 14px; color: var(--accent-strong); }
 
-.recipe-card { margin-top: 0; }
+.recipe-card form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(28px, 4vw, 56px);
+  align-items: start;
+}
+.form-col { display: flex; flex-direction: column; gap: 22px; }
+.form-col--recipe .field-group { height: 100%; }
 
 /* ---------- Form ---------- */
 form { display: flex; flex-direction: column; gap: 22px; }
@@ -502,6 +511,7 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   .ingredients-columns { grid-template-columns: 1fr; }
   .directions-columns { grid-template-columns: 1fr; }
   .recipe-photo-mat { position: static; }
+  .recipe-card form { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
   .row, .field-row { grid-template-columns: 1fr; }

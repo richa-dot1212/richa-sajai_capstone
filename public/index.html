@@ -14,70 +14,74 @@
 
   <!-- ============ SCREEN 1: input ============ -->
   <section id="view-input" class="view view-input">
+    <div class="view-input__hero gingham-band">
+      <img class="hero-illustration hero-illustration--cookie" src="images/illustrations/cookie.png" alt="" />
+      <img class="hero-illustration hero-illustration--pancake" src="images/illustrations/pancake.png" alt="" />
+      <img class="hero-illustration hero-illustration--macaron" src="images/illustrations/macaron.png" alt="" />
+      <img class="hero-illustration hero-illustration--cake" src="images/illustrations/cake.png" alt="" />
+      <p class="kicker">Home cooking, on budget</p>
+      <h1 class="brand-title">Recipe Budget Agent</h1>
+      <p class="subtitle">
+        Give it a recipe, what you're missing, and a budget. It figures out what to
+        substitute, what to buy on Instamart, and hands you back a recipe made for
+        your kitchen tonight.
+      </p>
+
+      <div id="swiggy-status" class="swiggy-step"></div>
+    </div>
+
     <div class="view-input__layout">
-      <div class="view-input__hero gingham-band">
-        <img class="hero-illustration hero-illustration--cookie" src="images/illustrations/cookie.png" alt="" />
-        <img class="hero-illustration hero-illustration--pancake" src="images/illustrations/pancake.png" alt="" />
-        <img class="hero-illustration hero-illustration--macaron" src="images/illustrations/macaron.png" alt="" />
-        <img class="hero-illustration hero-illustration--cake" src="images/illustrations/cake.png" alt="" />
-        <p class="kicker">Home cooking, on budget</p>
-        <h1 class="brand-title">Recipe Budget Agent</h1>
-        <p class="subtitle">
-          Give it a recipe, what you're missing, and a budget. It figures out what to
-          substitute, what to buy on Instamart, and hands you back a recipe made for
-          your kitchen tonight.
-        </p>
-
-        <div id="swiggy-status" class="swiggy-step"></div>
-      </div>
-
       <main class="card recipe-card">
         <form id="adapt-form" novalidate>
-          <fieldset class="field-group">
-            <legend>The recipe</legend>
-            <label for="recipeUrl">Recipe URL</label>
-            <input type="url" id="recipeUrl" placeholder="https://..." />
-
-            <div class="divider" role="presentation"><span>or</span></div>
-
-            <label for="recipeText">Paste the recipe text directly</label>
-            <textarea id="recipeText" rows="4" placeholder="Paste ingredients and instructions here if you don't have a link..."></textarea>
-            <p class="hint">Fill in the link above or this box, not both.</p>
-          </fieldset>
-
-          <div class="field-row">
+          <div class="form-col form-col--recipe">
             <fieldset class="field-group">
-              <legend>What's missing</legend>
-              <label for="missingIngredients">Ingredients you're missing</label>
-              <input type="text" id="missingIngredients" placeholder="e.g. baking soda, cornstarch" />
-              <p class="hint">Comma-separated. Only list what you don't have.</p>
-            </fieldset>
+              <legend>The recipe</legend>
+              <label for="recipeUrl">Recipe URL</label>
+              <input type="url" id="recipeUrl" placeholder="https://..." />
 
-            <fieldset class="field-group">
-              <legend>Servings &amp; budget</legend>
-              <div class="row">
-                <div class="field">
-                  <label for="servingSize">Serving size</label>
-                  <input type="number" id="servingSize" min="1" value="12" required />
-                </div>
-                <div class="field">
-                  <label for="budget">Budget (₹)</label>
-                  <input type="number" id="budget" min="0" value="150" required />
-                </div>
-              </div>
+              <div class="divider" role="presentation"><span>or</span></div>
+
+              <label for="recipeText">Paste the recipe text directly</label>
+              <textarea id="recipeText" rows="4" placeholder="Paste ingredients and instructions here if you don't have a link..."></textarea>
+              <p class="hint">Fill in the link above or this box, not both.</p>
             </fieldset>
           </div>
 
-          <fieldset class="field-group">
-            <legend>Anything else?</legend>
-            <label for="requestedChanges">Requested changes (optional)</label>
-            <input type="text" id="requestedChanges" placeholder="e.g. make them smaller, less sweet" />
-          </fieldset>
+          <div class="form-col form-col--rest">
+            <div class="field-row">
+              <fieldset class="field-group">
+                <legend>What's missing</legend>
+                <label for="missingIngredients">Ingredients you're missing</label>
+                <input type="text" id="missingIngredients" placeholder="e.g. baking soda, cornstarch" />
+                <p class="hint">Comma-separated. Only list what you don't have.</p>
+              </fieldset>
 
-          <button type="submit" id="adapt-btn" class="btn-primary">
-            <span>Adapt My Recipe</span>
-            <svg class="icon" aria-hidden="true" viewBox="0 0 256 256"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg>
-          </button>
+              <fieldset class="field-group">
+                <legend>Servings &amp; budget</legend>
+                <div class="row">
+                  <div class="field">
+                    <label for="servingSize">Serving size</label>
+                    <input type="number" id="servingSize" min="1" value="12" required />
+                  </div>
+                  <div class="field">
+                    <label for="budget">Budget (₹)</label>
+                    <input type="number" id="budget" min="0" value="150" required />
+                  </div>
+                </div>
+              </fieldset>
+            </div>
+
+            <fieldset class="field-group">
+              <legend>Anything else?</legend>
+              <label for="requestedChanges">Requested changes (optional)</label>
+              <input type="text" id="requestedChanges" placeholder="e.g. make them smaller, less sweet" />
+            </fieldset>
+
+            <button type="submit" id="adapt-btn" class="btn-primary">
+              <span>Adapt My Recipe</span>
+              <svg class="icon" aria-hidden="true" viewBox="0 0 256 256"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg>
+            </button>
+          </div>
         </form>
       </main>
     </div>
