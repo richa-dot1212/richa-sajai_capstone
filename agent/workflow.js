@@ -385,7 +385,28 @@ function buildSummary(state) {
   // never means "assume it's already in the kitchen."
   const purchases = state.decisions.filter((d) => (d.decision === 'buy' || d.decision === 'substitute') && d.product);
   const unresolved = state.decisions.filter((d) => d.decision === 'cannot_complete');
+
+  // The full ingredient list (already computed for the saved document) is
+  // exposed here too, with a per-ingredient note when it was substituted,
+  // bought, or couldn't be resolved -- purely additive data for the
+  // website's ingredients tab, no change to how any decision is made.
+  const decisionByIngredient = new Map(state.decisions.map((d) => [d.ingredient.toLowerCase(), d]));
+  const ingredients = state.scaledIngredients.map((ing) => {
+    const decision = decisionByIngredient.get(ing.name.toLowerCase());
+    let note = null;
+    if (decision) {
+      if (decision.decision === 'substitute') note = `Substituted with ${decision.substituteCandidate}`;
+      else if (decision.decision === 'buy') note = 'Bought via Instamart';
+      else if (decision.decision === 'cannot_complete') note = 'Could not be resolved within budget';
+    }
+    return { name: ing.name, quantity: ing.quantity, note };
+  });
+
   return {
+    title: state.recipe.title,
+    servings: Number(state.input.servingSize),
+    ingredients,
+    instructions: state.finalInstructions,
     missingIngredients: state.missingIngredients.map((m) => m.name),
     substitutions: substitutions.map((s) => ({ ingredient: s.ingredient, substitute: s.substituteCandidate, reasoning: s.reasoning })),
     cartItems: purchases.map((p) => ({ ingredient: p.ingredient, product: p.product.displayName, cost: p.cost })),

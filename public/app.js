@@ -1,6 +1,4 @@
-// Real Phosphor Icons (regular style, MIT-licensed) inlined as path data --
-// see public/fonts and the redesign notes in BUILD_LOG for why these were
-// chosen over emoji/hand-drawn glyphs.
+// Real Phosphor Icons (regular style, MIT-licensed) inlined as path data.
 const ICONS = {
   checkCircle: 'M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z',
   circle: 'M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Z',
@@ -14,13 +12,24 @@ function icon(name, extraClass) {
   return `<svg class="icon${extraClass ? ' ' + extraClass : ''}" aria-hidden="true" viewBox="0 0 256 256"><path d="${ICONS[name]}"/></svg>`;
 }
 
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ---------------------------------------------------------------
+// View switching (3 full-screen views: input, progress, result;
+// error can interrupt any of them).
+// ---------------------------------------------------------------
+function showView(id) {
+  document.querySelectorAll('.view').forEach((el) => { el.hidden = el.id !== id; });
+}
+
 const form = document.getElementById('adapt-form');
 const btn = document.getElementById('adapt-btn');
 const notice = document.getElementById('notice');
-const progressSection = document.getElementById('progress');
 const stageList = document.getElementById('stage-list');
-const resultSection = document.getElementById('result');
-const errorSection = document.getElementById('error');
 
 let STAGES = [];
 
@@ -35,10 +44,17 @@ async function loadSwiggyStatus() {
   try {
     const res = await fetch('/auth/swiggy/status');
     const { loggedIn } = await res.json();
-    el.innerHTML = loggedIn
-      ? `${icon('checkCircle')}<span>Connected to Swiggy Instamart</span>`
-      : `${icon('warning')}<span>Not connected yet -- <a href="/auth/swiggy/login">connect your Instamart account</a> before adapting a recipe</span>`;
-    el.className = `swiggy-status ${loggedIn ? 'connected' : 'disconnected'}`;
+    if (loggedIn) {
+      el.className = 'swiggy-step is-connected';
+      el.innerHTML = `${icon('checkCircle')}<span>Connected to Swiggy Instamart</span>`;
+    } else {
+      el.className = 'swiggy-step';
+      el.innerHTML = `
+        <p class="swiggy-step__title">${icon('link')}Step 1 -- connect Instamart</p>
+        <p>Required before adapting a recipe, so the agent can check prices and add anything it buys to your real cart.</p>
+        <a href="/auth/swiggy/login" class="btn-primary"><span>Connect Swiggy Instamart</span>${icon('arrowRight')}</a>
+      `;
+    }
   } catch {
     el.textContent = '';
   }
@@ -63,22 +79,19 @@ function renderStages(reachedKeys, allDone) {
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   btn.disabled = true;
-  notice.hidden = false;
-  notice.innerHTML = `${icon('checkCircle')}<span>Working on it -- the agent will search Instamart for anything worth buying and add it to your real cart (no checkout), then your personalized recipe will be ready to download below.</span>`;
-  progressSection.hidden = false;
-  resultSection.hidden = true;
-  errorSection.hidden = true;
-  renderStages([]);
 
   const recipeUrl = document.getElementById('recipeUrl').value.trim();
   const recipeText = document.getElementById('recipeText').value.trim();
   if (!recipeUrl && !recipeText) {
     btn.disabled = false;
-    notice.hidden = true;
-    progressSection.hidden = true;
     showError('Fill in either a recipe URL or paste the recipe text.');
     return;
   }
+
+  showView('view-progress');
+  notice.hidden = false;
+  notice.innerHTML = `${icon('checkCircle')}<span>The agent will search Instamart for anything worth buying and add it to your real cart (no checkout), then your personalized recipe will be ready to download.</span>`;
+  renderStages([]);
 
   const body = {
     recipeUrl,
@@ -118,9 +131,11 @@ form.addEventListener('submit', async (e) => {
       return;
     }
     renderStages(STAGES.map((s) => s.key), true);
-    resultSection.hidden = false;
+    document.getElementById('recipe-title').textContent = summary.title || 'Your recipe';
     document.getElementById('download-link').href = `/output/${savedPath}`;
-    document.getElementById('summary').innerHTML = renderSummary(summary);
+    document.getElementById('summary').innerHTML = renderTabs(summary);
+    setActiveTab('ingredients');
+    showView('view-result');
   });
   source.onerror = () => {
     source.close();
@@ -128,39 +143,86 @@ form.addEventListener('submit', async (e) => {
   };
 });
 
-function renderSummary(summary) {
-  const list = (items, empty) => (items.length ? `<ul>${items.join('')}</ul>` : `<p class="empty">${empty}</p>`);
+// ---------------------------------------------------------------
+// Tabs -- Ingredients / Directions
+// ---------------------------------------------------------------
+document.querySelectorAll('.tab-btn').forEach((tabBtn) => {
+  tabBtn.addEventListener('click', () => setActiveTab(tabBtn.dataset.tab));
+});
 
-  const missing = list(
-    summary.missingIngredients.map((m) => `<li>${icon('circle')}<span>${escapeHtml(m)}</span></li>`),
-    'Nothing missing -- you had everything on hand.'
-  );
-  const subs = list(
-    summary.substitutions.map(
-      (s) =>
-        `<li>${icon('arrowRight')}<span><strong>${escapeHtml(s.ingredient)}</strong> → ${escapeHtml(s.substitute)}<small>${escapeHtml(s.reasoning)}</small></span></li>`
-    ),
-    'No substitutions were needed.'
-  );
-  const cart = list(
-    summary.cartItems.map(
-      (c) =>
-        `<li>${icon('cart')}<span><strong>${escapeHtml(c.ingredient)}</strong> -- ${escapeHtml(c.product)}</span><span class="cost">₹${c.cost}</span></li>`
-    ),
-    'Nothing needed to be bought.'
-  );
-  const unresolved = summary.unresolved.length
-    ? `<h3>Could not resolve</h3>${list(
-        summary.unresolved.map((u) => `<li>${icon('warning')}<span><strong>${escapeHtml(u.ingredient)}</strong>: ${escapeHtml(u.reasoning)}</span></li>`),
-        ''
-      )}`
+function setActiveTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b) => {
+    const active = b.dataset.tab === name;
+    b.classList.toggle('is-active', active);
+    b.setAttribute('aria-selected', String(active));
+    if (active) positionTabIndicator(b);
+  });
+  document.querySelectorAll('.tab-panel').forEach((p) => {
+    p.hidden = p.dataset.panel !== name;
+  });
+}
+
+function positionTabIndicator(activeBtn) {
+  const indicator = document.querySelector('.tabs__indicator');
+  if (!indicator) return;
+  indicator.style.width = `${activeBtn.offsetWidth}px`;
+  indicator.style.transform = `translateX(${activeBtn.offsetLeft}px)`;
+}
+
+// ---------------------------------------------------------------
+// Result rendering
+// ---------------------------------------------------------------
+function renderTabs(summary) {
+  return `
+    <div class="tab-panel" data-panel="ingredients">${renderIngredientsTab(summary)}</div>
+    <div class="tab-panel" data-panel="directions" hidden>${renderDirectionsTab(summary)}</div>
+  `;
+}
+
+function renderIngredientsTab(summary) {
+  const ingredients = summary.ingredients || [];
+  const ingredientRows = ingredients.length
+    ? ingredients
+        .map((ing) => {
+          let noteHtml = '';
+          if (ing.note) {
+            const cls = /substitut/i.test(ing.note) ? 'sub' : /bought/i.test(ing.note) ? 'bought' : 'unresolved';
+            noteHtml = `<span class="note ${cls}">${escapeHtml(ing.note)}</span>`;
+          }
+          return `<li><span class="qty">${escapeHtml(ing.quantity)}</span><span class="name">${escapeHtml(ing.name)}</span>${noteHtml}</li>`;
+        })
+        .join('')
+    : '<li><span class="name">No ingredients found.</span></li>';
+
+  const cartItems = summary.cartItems || [];
+  const cartRows = cartItems.length
+    ? cartItems
+        .map(
+          (c) =>
+            `<li>${icon('cart')}<span>${escapeHtml(c.product)}</span><span class="added-badge">${icon('checkCircle')}Added to cart</span><span class="price">₹${c.cost}</span></li>`
+        )
+        .join('')
+    : '<p class="empty">Nothing needed to be bought -- everything was already on hand or substituted.</p>';
+
+  const unresolved = summary.unresolved && summary.unresolved.length
+    ? `<div class="cart-note" style="margin-top:0;">
+         <h3>Heads up</h3>
+         <p class="cart-note__sub">Could not be resolved within your budget</p>
+         <ul>${summary.unresolved.map((u) => `<li>${icon('warning')}<span><strong>${escapeHtml(u.ingredient)}</strong>: ${escapeHtml(u.reasoning)}</span></li>`).join('')}</ul>
+       </div>`
     : '';
 
   return `
-    <h3>Missing ingredients</h3>${missing}
-    <h3>Substitutions made</h3>${subs}
-    <h3>Added to Instamart cart</h3>${cart}
+    <ul class="ingredient-list">${ingredientRows}</ul>
+
+    <div class="cart-note">
+      <h3>From the Instamart cart</h3>
+      <p class="cart-note__sub">Already added, ready for checkout in the app</p>
+      ${cartItems.length ? `<ul>${cartRows}</ul>` : cartRows}
+    </div>
+
     ${unresolved}
+
     <div class="total-cost">
       <span class="total-cost__label">Total spent<span class="amount">₹${summary.totalCost}</span></span>
       <span class="of-budget">of ₹${summary.budget} budget</span>
@@ -168,14 +230,21 @@ function renderSummary(summary) {
   `;
 }
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+function renderDirectionsTab(summary) {
+  const steps = summary.instructions || [];
+  if (!steps.length) return '<p class="empty">No instructions were found for this recipe.</p>';
+  return `<ol class="directions-list">${steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>`;
 }
 
+// ---------------------------------------------------------------
+// Error view
+// ---------------------------------------------------------------
 function showError(message) {
-  errorSection.hidden = false;
   document.getElementById('error-message').textContent = message;
+  showView('error');
   btn.disabled = false;
 }
+
+document.getElementById('error-retry-btn').addEventListener('click', () => {
+  showView('view-input');
+});
