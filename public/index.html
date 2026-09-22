@@ -2,77 +2,100 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Recipe Budget Agent</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Crect width='256' height='256' rx='56' fill='%231F5C3E'/%3E%3Cpath fill='%23FAF9F5' d='M88,64V32a8,8,0,0,1,16,0V64a8,8,0,0,1-16,0Zm40,8a8,8,0,0,0,8-8V32a8,8,0,0,0-16,0V64A8,8,0,0,0,128,72Zm32,0a8,8,0,0,0,8-8V32a8,8,0,0,0-16,0V64A8,8,0,0,0,160,72Zm92.8,46.4L224,140v60a32,32,0,0,1-32,32H64a32,32,0,0,1-32-32V140L3.2,118.4a8,8,0,0,1,9.6-12.8L32,120V96a8,8,0,0,1,8-8H216a8,8,0,0,1,8,8v24l19.2-14.4a8,8,0,0,1,9.6,12.8ZM208,104H48v96a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16Z'/%3E%3C/svg%3E" />
+<link rel="preload" href="fonts/karla-variable.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="fonts/cormorant-variable.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="fonts/fonts.css" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main>
-    <h1>Recipe Budget Agent</h1>
-    <p class="subtitle">
-      Give it a recipe, what you're missing, and a budget. It will figure out what to
-      substitute, what to buy on Instamart, and hand you back a personalized recipe.
-    </p>
+  <div class="page">
+    <header class="masthead">
+      <p class="masthead__kicker">Home cooking, on budget</p>
+      <h1>Recipe Budget Agent</h1>
+      <p class="subtitle">
+        Give it a recipe, what you're missing, and a budget. It figures out what to
+        substitute, what to buy on Instamart, and hands you back a recipe made for
+        your kitchen tonight.
+      </p>
+    </header>
 
     <div id="swiggy-status" class="swiggy-status"></div>
 
-    <form id="adapt-form">
-      <label>
-        Recipe URL
-        <input type="url" id="recipeUrl" placeholder="https://..." />
-      </label>
+    <main class="card recipe-card">
+      <form id="adapt-form" novalidate>
+        <fieldset class="field-group">
+          <legend>The recipe</legend>
+          <label for="recipeUrl">Recipe URL</label>
+          <input type="url" id="recipeUrl" placeholder="https://..." />
 
-      <label>
-        Or paste the recipe text directly
-        <textarea id="recipeText" rows="5" placeholder="Paste ingredients + instructions here if you don't have a URL..."></textarea>
-        <small>Fill in either the URL above or this box -- not both.</small>
-      </label>
+          <div class="divider" role="presentation"><span>or</span></div>
 
-      <label>
-        Ingredients you're missing (comma-separated)
-        <input type="text" id="missingIngredients" placeholder="e.g. baking soda, cornstarch" />
-        <small>Only list what you don't have -- everything else is assumed on hand.</small>
-      </label>
+          <label for="recipeText">Paste the recipe text directly</label>
+          <textarea id="recipeText" rows="4" placeholder="Paste ingredients and instructions here if you don't have a link..."></textarea>
+          <p class="hint">Fill in the link above or this box, not both.</p>
+        </fieldset>
 
-      <div class="row">
-        <label>
-          Serving size
-          <input type="number" id="servingSize" min="1" value="12" required />
-        </label>
-        <label>
-          Budget (₹)
-          <input type="number" id="budget" min="0" value="150" required />
-        </label>
-      </div>
+        <fieldset class="field-group">
+          <legend>What's missing</legend>
+          <label for="missingIngredients">Ingredients you're missing</label>
+          <input type="text" id="missingIngredients" placeholder="e.g. baking soda, cornstarch" />
+          <p class="hint">Comma-separated. Only list what you don't have, everything else is assumed on hand.</p>
+        </fieldset>
 
-      <label>
-        Requested changes (optional)
-        <input type="text" id="requestedChanges" placeholder="e.g. make them smaller, less sweet" />
-      </label>
+        <fieldset class="field-group">
+          <legend>Servings &amp; budget</legend>
+          <div class="row">
+            <div class="field">
+              <label for="servingSize">Serving size</label>
+              <input type="number" id="servingSize" min="1" value="12" required />
+            </div>
+            <div class="field">
+              <label for="budget">Budget (₹)</label>
+              <input type="number" id="budget" min="0" value="150" required />
+            </div>
+          </div>
+        </fieldset>
 
-      <button type="submit" id="adapt-btn">Adapt My Recipe</button>
-    </form>
+        <fieldset class="field-group">
+          <legend>Anything else?</legend>
+          <label for="requestedChanges">Requested changes (optional)</label>
+          <input type="text" id="requestedChanges" placeholder="e.g. make them smaller, less sweet" />
+        </fieldset>
 
-    <p class="notice" id="notice" hidden>
-      Working on it -- the agent will search Instamart for anything worth buying and add
-      it to your real cart (no checkout), then download your personalized recipe below.
-    </p>
+        <button type="submit" id="adapt-btn" class="btn-primary">
+          <span>Adapt My Recipe</span>
+          <svg class="icon" aria-hidden="true" viewBox="0 0 256 256"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg>
+        </button>
+      </form>
+    </main>
 
-    <section id="progress" hidden>
+    <p class="notice" id="notice" hidden></p>
+
+    <section id="progress" class="card" hidden>
       <h2>Progress</h2>
-      <ul id="stage-list"></ul>
+      <ol id="stage-list" class="stage-list"></ol>
     </section>
 
-    <section id="result" hidden>
+    <section id="result" class="card" hidden>
       <h2>Your personalized recipe</h2>
       <div id="summary"></div>
-      <a id="download-link" href="#" target="_blank">Download the full recipe document</a>
+      <a id="download-link" class="btn-secondary" href="#" target="_blank">
+        <svg class="icon" aria-hidden="true" viewBox="0 0 256 256"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>
+        <span>Download the full recipe document</span>
+      </a>
     </section>
 
-    <section id="error" hidden>
-      <h2>Something went wrong</h2>
+    <section id="error" class="card error-card" hidden>
+      <h2>
+        <svg class="icon" aria-hidden="true" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"/></svg>
+        Something went wrong
+      </h2>
       <p id="error-message"></p>
     </section>
-  </main>
+  </div>
   <script src="app.js"></script>
 </body>
 </html>

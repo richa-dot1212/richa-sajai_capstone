@@ -2,7 +2,7 @@
 
 One entry per commit: date, time spent, rough tokens used, what shipped. Filled before each commit/push.
 
-**Running total across the whole project (through the latest entry below): ~14.5 hours, ~260-275K tokens.**
+**Running total across the whole project (through the latest entry below): ~19 hours, ~330-345K tokens.**
 
 ---
 
@@ -118,3 +118,14 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   1. First real live run on Groq failed with a `413`: the on-demand tier caps at 8000 tokens/minute, and the prompt (45,000 characters of recipe content, sized for Gemini's much higher limit) blew past it. Trimmed prompt sizes, and fixed `fetchRecipeMarkdown` to return just the chunk the ingredient lines were actually found in, not that chunk padded with the entire previous chunk.
   2. That first trim (a blind `slice(0, 12000)` of the old, padded chunk) then failed to find a real recipe at all -- the trimmed window landed in boilerplate before the actual ingredient list. Fixed properly by returning the matched chunk itself.
   3. While verifying the substitute-purchasing fix, found the actual cart-search was returning the *same* (wrong) product for both the original ingredient and its substitute -- e.g. searching "unsalted margarine (e.g., Earth Balance), melted and cooled" on Instamart. Ingredient names and substitute candidates carry recipe-specific phrasing that makes a poor search query. Added `cleanForSearch()` to strip parenthetical asides and trailing prep clauses before querying; confirmed live that the substitute search then found a genuinely different, cheaper product.
+
+## 2026-09-22 -- Deployment fixes + frontend redesign (on a separate branch)
+
+- **Time spent:** ~4 hours (Railway deployment, a real per-visitor session bug found post-deploy, investigating a genuine Swiggy client-whitelist restriction, and a full visual redesign)
+- **Rough tokens used:** ~65-75K
+- **What shipped:**
+  - Deployed to Railway (`main`): added `engines.node` to `package.json`, walked through account/env-var/domain setup. Confirmed the app runs on a real public URL.
+  - Real bug found immediately after deploy: the professor opened the live link and saw Instamart as "already connected" -- `agent/swiggyOAuth.js` stored the OAuth token in one global variable, so every visitor shared whoever logged in first. Fixed with `agent/session.js` (a minimal cookie-based per-visitor id) and keyed token storage by session id throughout `swiggyOAuth.js`, `instamartClient.js`, and `workflow.js`. Verified locally with two separate cookie jars getting independent, isolated login states.
+  - Investigated a second real issue surfaced by testing in incognito: Swiggy only allows OAuth sign-in from a small set of pre-approved redirect URLs (confirmed via their public `swiggy-mcp-server-manifest` GitHub repo -- Claude, ChatGPT, VS Code, Postman, and plain `localhost` are whitelisted; our Railway URL is not). Regular-tab logins had been succeeding only because the browser already had an active Swiggy session, which bypasses the strict new-client check. This is a genuine external policy restriction, not a bug in our code -- documented here rather than silently worked around.
+  - Redesigned the frontend on a **new branch** (`frontend-redesign-recipe-book`, `main` untouched) using the installed design-taste-frontend skill: audited the existing plain form UI first (dial reading: variance ~1-2, motion ~1, density ~4), then rebuilt the visual layer only -- every element id/class the JS depends on preserved exactly, zero changes to `agent/`, API routes, or the workflow. New design: self-hosted Cormorant Garamond + Karla (no runtime Google Fonts dependency), a paper/ink/single-forest-green-accent palette (deliberately not the cliche cream+brass+espresso "artisan" palette), real inlined Phosphor icons replacing emoji glyphs, a proper card/step-list/result presentation, full dark-mode token set, and mobile-responsive breakpoints.
+- **What didn't work on the first try:** while writing the redesign's result markup, initially left the download link's `<a>` element with no static text and no JS fallback to fill it in (the JS only ever set `.href`, never `.textContent` or innerHTML) -- caught during a pre-commit ID/functionality audit before it shipped, not from a live failure. Fixed by restoring visible link text directly in the markup alongside an icon.
