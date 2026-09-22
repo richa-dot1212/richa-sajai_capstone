@@ -55,9 +55,8 @@ async function loadSwiggyStatus() {
     } else {
       el.className = 'swiggy-step';
       el.innerHTML = `
-        <p class="swiggy-step__title">${icon('link')}Step 1 -- connect Instamart</p>
         <p>Required before adapting a recipe, so the agent can check prices and add anything it buys to your real cart.</p>
-        <a href="/auth/swiggy/login" class="btn-primary"><span>Connect Swiggy Instamart</span>${icon('arrowRight')}</a>
+        <a href="/auth/swiggy/login" class="btn-primary"><span>Connect to Swiggy</span>${icon('arrowRight')}</a>
       `;
     }
   } catch {
@@ -222,7 +221,7 @@ function renderIngredientsTab(summary) {
       </div>
       <div class="ingredients-columns__right">
         <div class="cart-note">
-          <h3>From the Instamart cart</h3>
+          <h3><img class="cart-note__logo" src="images/swiggy-logo.png" alt="" onerror="this.remove()" />From the Instamart cart</h3>
           <p class="cart-note__sub">Already added, ready for checkout in the app</p>
           ${cartItems.length ? `<ul>${cartRows}</ul>` : cartRows}
         </div>

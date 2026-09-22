@@ -2,7 +2,7 @@
 
 One entry per commit: date, time spent, rough tokens used, what shipped. Filled before each commit/push.
 
-**Running total across the whole project (through the latest entry below): ~24 hours, ~410-425K tokens.**
+**Running total across the whole project (through the latest entry below): ~25 hours, ~430-450K tokens.**
 
 ---
 
@@ -177,3 +177,15 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - Per feedback that the full-page gingham background on the input screen made the text hard to read: removed it from `.view-input` entirely and replaced it with a confined "scrapbook" effect -- a rotated, gingham-backed card peeking out from behind the opaque recipe-input card only (`.recipe-card::before`), matching the layered-card reference images the user provided. The Instamart cart-note gingham backdrop on the result screen was untouched (already confined, not part of the complaint).
   - Changed the accent color from a rose/red (`#c96b6b`) to a deep orange (`#cc6a24`) per request, updating the derived `--accent-strong`/`--accent-tint` tokens so every button, badge, and highlight across all 3 screens stays consistent (per the earlier "one accent color, used everywhere" rule).
 - **What didn't work on the first try:** nothing broke this round -- the progress-screen bug was found by reading the actual CSS cascade (comparing UA-stylesheet vs. author-stylesheet precedence) rather than re-guessing at the JS view-switching logic, which had already been correctly fixed in an earlier round.
+
+## 2026-09-22 -- Frontend v4: centered layout, navy-blue accent, CSS gingham band (same branch)
+
+- **Time spent:** ~1 hour (plan-mode design pass with 4 clarifying questions, license research on 2 named fonts, CSS/HTML restructuring)
+- **Rough tokens used:** ~20-25K
+- **What shipped:** user built an actual Canva reference design and asked for the live site to match it closely.
+  - Replaced the rose/orange accent with navy blue (`#1f3a68`/`#142544`/`#dbe4f2`) -- a pure 3-variable swap in `style.css`, since every accent usage already routed through those custom properties.
+  - Built a real, image-free "yellow gingham" band using two overlapping `repeating-linear-gradient` stripe sets over a cream base (`--gingham-band`), confined to a header band behind the hero title/CTA on the input screen and behind the title/tabs on the result screen -- deliberately different execution from the reverted v3 red-photo gingham (that one covered/backed cards and the user disliked it; this one is a header accent only, matching the new references).
+  - Restructured the input screen from a 2-column sticky sidebar+form into a single centered hero (kicker, title, subtitle, a promoted big pill "Connect to Swiggy" CTA) with the form as its own centered block below, and restructured the result screen's header into a stacked, centered back/download row -> title -> tabs, replacing the old left-aligned flex row.
+  - Removed the gingham background from behind the Instamart cart note per explicit feedback -- it's now a plain torn-paper note on the page background.
+  - Researched licensing for the two fonts the user named from their Canva file: Anaktoria is public domain/free for any use (safe to self-host); SwungNote is free for personal use only, commercial use requires contacting the author -- flagged this to the user as a real open decision (self-host anyway as a non-commercial student project, or swap to a similarly-styled Google Fonts alternative) rather than deciding it myself, since the site is deployed publicly on Railway.
+- **What didn't work on the first try / open items:** the actual font files, the Swiggy logo image, and the 4 hand-drawn illustration images are all pending from the user (illustrations need a one-off Node+`sharp` script to strip their white backgrounds, since this environment has no real Python/ImageMagick -- confirmed `python3` is just the Microsoft Store stub and the `convert` on PATH is Windows' unrelated NTFS-conversion tool, not ImageMagick). Shipped everything else now with safe fallback fonts (`Caveat`/`Georgia`) so the layout/color/gingham work is fully visible and testable without blocking on those assets.
