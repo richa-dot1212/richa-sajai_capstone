@@ -28,8 +28,7 @@
   --error-border: #e8c9ac;
 
   --font-title: 'Slackey', 'Caveat', 'Segoe Script', cursive;
-  --font-accent: 'Anaktoria', Georgia, 'Times New Roman', serif;
-  --font-body: 'Karla', system-ui, sans-serif;
+  --font-body: 'Anaktoria', 'Karla', system-ui, serif;
 
   --radius-card: 20px;
   --radius-control: 10px;
@@ -116,14 +115,14 @@ body {
   position: relative;
   text-align: center;
   width: 100%;
-  padding: clamp(24px, 4vw, 40px) clamp(20px, 5vw, 40px);
+  padding: clamp(56px, 9vw, 96px) clamp(20px, 5vw, 40px);
 }
 
 .hero-illustration {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: clamp(110px, 13vw, 170px);
+  width: clamp(120px, 14vw, 190px);
   height: auto;
   opacity: 0.9;
 }
@@ -136,10 +135,10 @@ body {
 }
 
 .brand-title {
-  margin: 0 0 10px;
+  margin: 0 0 14px;
   font-family: var(--font-title);
   font-weight: 700;
-  font-size: clamp(3rem, 6vw, 4.2rem);
+  font-size: clamp(3.4rem, 7vw, 5.2rem);
   line-height: 0.95;
   color: var(--accent-strong);
 }
@@ -148,8 +147,7 @@ body {
   margin: 0 auto 28px;
   max-width: 48ch;
   color: var(--ink-soft);
-  font-size: 17px;
-  font-family: var(--font-accent);
+  font-size: 18px;
   font-style: italic;
 }
 
@@ -263,13 +261,53 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 /* ================================================================
    SCREEN 2 -- progress
    ================================================================ */
+.view-progress { padding: 0; }
 .view-progress:not([hidden]) {
   display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.progress-header-band {
+  width: 100%;
+  text-align: center;
+  padding: clamp(32px, 6vw, 56px) 20px clamp(24px, 4vw, 36px);
+}
+.progress-header-band h2 {
+  margin: 4px 0 0;
+  font-family: var(--font-title);
+  color: var(--accent-strong);
+  font-weight: 700;
+  font-size: clamp(2rem, 4.5vw, 2.8rem);
+}
+
+.progress-body {
+  flex: 1;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: clamp(24px, 4vw, 40px);
+  text-align: center;
 }
-.progress-panel { width: 100%; max-width: 480px; text-align: center; }
-.progress-panel h2 { font-size: clamp(1.6rem, 4vw, 2rem); margin: 0 0 20px; }
+
+.pot-wrap { width: clamp(140px, 20vw, 200px); margin: 0 0 12px; }
+.pot-illustration { width: 100%; height: auto; overflow: visible; }
+.pot-outline { stroke: var(--accent-strong); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+.pot-outline--thick { stroke-width: 9; }
+#pot-liquid, #pot-liquid-wave { fill: var(--accent); transition: y 0.7s ease, height 0.7s ease, transform 0.7s ease; }
+.pot-steam { stroke: var(--ink-faint); stroke-width: 4; stroke-linecap: round; opacity: 0.7; animation: steam-drift 3s ease-in-out infinite; }
+.pot-steam--2 { animation-delay: 1.2s; }
+@keyframes steam-drift {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50% { opacity: 0.7; transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pot-steam { animation: none; }
+}
 
 .notice {
   display: flex; gap: 10px; align-items: flex-start; text-align: left;
@@ -307,13 +345,22 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 /* ================================================================
    SCREEN 3 -- result
    ================================================================ */
-.view-result { max-width: 1280px; margin: 0 auto; }
+.view-result { padding: 0; }
 
 .result-header-band {
-  border-radius: var(--radius-card);
-  padding: clamp(20px, 4vw, 32px) clamp(20px, 4vw, 40px) clamp(28px, 4vw, 36px);
-  margin-bottom: clamp(24px, 4vw, 40px);
+  width: 100%;
+  padding: clamp(24px, 4vw, 36px) clamp(20px, 4vw, 40px) clamp(28px, 4vw, 36px);
   text-align: center;
+}
+.result-header-band__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.view-result__body {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 56px);
 }
 
 .result-header-band__row {

@@ -68,16 +68,35 @@ loadSwiggyStatus();
 function renderStages(reachedKeys, allDone) {
   stageList.innerHTML = '';
   const lastReached = reachedKeys[reachedKeys.length - 1];
+  let doneCount = 0;
   STAGES.forEach((stage) => {
     const li = document.createElement('li');
     const reachedIndex = reachedKeys.indexOf(stage.key);
     const isActive = !allDone && stage.key === lastReached;
     const isDone = reachedIndex !== -1 && !isActive;
+    if (isDone || allDone) doneCount++;
     li.className = isDone ? 'stage-done' : isActive ? 'stage-active' : 'stage-pending';
     const iconName = isDone ? 'checkCircle' : 'circle';
     li.innerHTML = `${icon(iconName)}<span>${stage.label}</span>`;
     stageList.appendChild(li);
   });
+  updatePotFill(allDone ? STAGES.length : doneCount + (reachedKeys.length > doneCount ? 0.5 : 0), STAGES.length);
+}
+
+// Fills the pot illustration on the progress screen a fraction at a time as
+// stages complete, purely a delight touch -- has no effect on the real run.
+function updatePotFill(completedUnits, totalUnits) {
+  const liquid = document.getElementById('pot-liquid');
+  const wave = document.getElementById('pot-liquid-wave');
+  if (!liquid || !wave) return;
+  const POT_BOTTOM = 178;
+  const POT_TOP = 74;
+  const fraction = totalUnits ? Math.min(1, completedUnits / totalUnits) : 0;
+  const y = POT_BOTTOM - fraction * (POT_BOTTOM - POT_TOP);
+  const height = POT_BOTTOM - y;
+  liquid.setAttribute('y', y);
+  liquid.setAttribute('height', height);
+  wave.setAttribute('transform', `translate(0, ${y - POT_BOTTOM})`);
 }
 
 form.addEventListener('submit', async (e) => {
@@ -221,7 +240,7 @@ function renderIngredientsTab(summary) {
       </div>
       <div class="ingredients-columns__right">
         <div class="cart-note">
-          <h3><img class="cart-note__logo" src="images/swiggy-logo.png" alt="" onerror="this.remove()" />From the Instamart cart</h3>
+          <h3><img class="cart-note__logo" src="images/swiggy-logo.webp" alt="" onerror="this.remove()" />From the Instamart cart</h3>
           <p class="cart-note__sub">Already added, ready for checkout in the app</p>
           ${cartItems.length ? `<ul>${cartRows}</ul>` : cartRows}
         </div>

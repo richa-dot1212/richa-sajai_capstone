@@ -214,3 +214,15 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - Enlarged the 4 hero illustrations (`clamp(70px,9vw,110px)` -> `clamp(110px,13vw,170px)`) and nudged their positions outward to fill the wider header.
   - Removed the "Home cooking, on budget" kicker line per feedback, and reduced the hero's vertical padding now that there's one less line of content.
 - **What didn't work on the first try:** nothing broke -- confirmed each new font file serves with a real 200 and CSS brace count stays balanced before committing.
+
+## 2026-09-23 -- Full-bleed result/progress headers, bigger hero, Anaktoria everywhere, pot-fill animation (same branch)
+
+- **Time spent:** ~1 hour
+- **Rough tokens used:** ~15-18K
+- **What shipped:**
+  - Added the real Swiggy logo (`swiggy-transparent-icon-free-png.webp`, user-provided, real transparent app icon) into the Instamart cart note heading.
+  - Extended the same full-bleed gingham-header treatment from the input screen to both the result screen (title/tabs/back/download row) and a new progress-screen header -- all three screens now share the same edge-to-edge header language instead of just screen 1.
+  - Restored the input hero to a bigger, more generous size per feedback (padding and title size both increased) after shrinking it in the previous round.
+  - Made Anaktoria the site's main body font (`--font-body`), not just an accent -- it now cascades into every ingredient/direction list, label, input, and button, with Karla kept as a fallback in the font stack so any glyph Anaktoria's ancient-scripts-oriented character set doesn't cover (e.g. the ₹ sign) still renders from Karla automatically.
+  - Built a pot-fill progress animation entirely in code (inline SVG matching the illustrations' navy line-art style, no new assets needed): a liquid rect clipped to the pot's interior shape animates its height as stages complete, reaching full at the last stage; small animated steam wisps for a bit of life. Wired into the existing `renderStages()` call in `app.js` via `updatePotFill()`, driven by the same stage data already being tracked -- no change to the real workflow logic.
+- **What didn't work on the first try:** nothing broke -- verified CSS brace balance and a handful of live asset requests (site, swiggy logo, fonts) after each pass before committing.
