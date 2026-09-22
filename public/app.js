@@ -24,6 +24,11 @@ function escapeHtml(str) {
 // ---------------------------------------------------------------
 function showView(id) {
   document.querySelectorAll('.view').forEach((el) => { el.hidden = el.id !== id; });
+  // Without this, switching views leaves the page at whatever scroll
+  // position the previous (now-hidden) view was at -- the new view then
+  // renders starting below the fold, looking like it "appeared lower on
+  // the same screen" instead of a fresh screen.
+  window.scrollTo(0, 0);
 }
 
 const form = document.getElementById('adapt-form');
@@ -155,19 +160,15 @@ function setActiveTab(name) {
     const active = b.dataset.tab === name;
     b.classList.toggle('is-active', active);
     b.setAttribute('aria-selected', String(active));
-    if (active) positionTabIndicator(b);
   });
   document.querySelectorAll('.tab-panel').forEach((p) => {
     p.hidden = p.dataset.panel !== name;
   });
 }
 
-function positionTabIndicator(activeBtn) {
-  const indicator = document.querySelector('.tabs__indicator');
-  if (!indicator) return;
-  indicator.style.width = `${activeBtn.offsetWidth}px`;
-  indicator.style.transform = `translateX(${activeBtn.offsetLeft}px)`;
-}
+document.getElementById('back-btn').addEventListener('click', () => {
+  showView('view-input');
+});
 
 // ---------------------------------------------------------------
 // Result rendering
@@ -205,7 +206,7 @@ function renderIngredientsTab(summary) {
     : '<p class="empty">Nothing needed to be bought -- everything was already on hand or substituted.</p>';
 
   const unresolved = summary.unresolved && summary.unresolved.length
-    ? `<div class="cart-note" style="margin-top:0;">
+    ? `<div class="cart-note cart-note--warning">
          <h3>Heads up</h3>
          <p class="cart-note__sub">Could not be resolved within your budget</p>
          <ul>${summary.unresolved.map((u) => `<li>${icon('warning')}<span><strong>${escapeHtml(u.ingredient)}</strong>: ${escapeHtml(u.reasoning)}</span></li>`).join('')}</ul>
@@ -213,19 +214,23 @@ function renderIngredientsTab(summary) {
     : '';
 
   return `
-    <ul class="ingredient-list">${ingredientRows}</ul>
+    <div class="ingredients-columns">
+      <div class="ingredients-columns__left">
+        <ul class="ingredient-list">${ingredientRows}</ul>
+        ${unresolved}
+      </div>
+      <div class="ingredients-columns__right">
+        <div class="cart-note">
+          <h3>From the Instamart cart</h3>
+          <p class="cart-note__sub">Already added, ready for checkout in the app</p>
+          ${cartItems.length ? `<ul>${cartRows}</ul>` : cartRows}
+        </div>
 
-    <div class="cart-note">
-      <h3>From the Instamart cart</h3>
-      <p class="cart-note__sub">Already added, ready for checkout in the app</p>
-      ${cartItems.length ? `<ul>${cartRows}</ul>` : cartRows}
-    </div>
-
-    ${unresolved}
-
-    <div class="total-cost">
-      <span class="total-cost__label">Total spent<span class="amount">₹${summary.totalCost}</span></span>
-      <span class="of-budget">of ₹${summary.budget} budget</span>
+        <div class="total-cost">
+          <span class="total-cost__label">Total spent<span class="amount">₹${summary.totalCost}</span></span>
+          <span class="of-budget">of ₹${summary.budget} budget</span>
+        </div>
+      </div>
     </div>
   `;
 }
