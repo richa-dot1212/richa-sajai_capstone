@@ -250,3 +250,14 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
 - **Rough tokens used:** ~3-4K
 - **What shipped:** user downloaded and provided the actual Swung Note `.ttf` file themselves (after I couldn't source it cleanly from any scriptable mirror) and confirmed this is a private, non-commercial project -- which satisfies the font's real "free for personal use" license from its original designer. Converted to `.woff2` with `ttf2woff2` (same as Anaktoria) and set it as the primary `--font-title`, ahead of Slackey in the fallback chain (kept as a safety net, not removed).
 - **What didn't work on the first try:** nothing broke -- confirmed the new font file serves with a real 200 before committing.
+
+## 2026-09-23 -- Uniform accent blue, bigger cart note, "Your adapted recipe" subtitle (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~5-6K
+- **What shipped:**
+  - Set `--accent` and `--accent-strong` to the same exact `#1b4b84` (previously two slightly different navy shades) so every blue accent and blue text on the site is now literally the same color, per request. The one place that relied on `--accent-strong` purely as a hover-darken shade (`.btn-primary:hover`) now derives its darker tone from `color-mix()` on the fly instead of a separate stored color, so hover feedback is preserved without reintroducing a second blue.
+  - Enlarged the Instamart cart note overall: more internal padding, bigger heading/list/logo/total-cost text, and gave its column a touch more width in the ingredients grid.
+  - Added "Your adapted recipe" under the recipe title on the result screen (in the same italic accent style as the home subtitle) since that area read as too empty.
+  - Noted for later: the 4 hand-drawn hero illustrations have their own blue baked into the PNG pixels (from the user's own drawing) and can't be recolored via CSS the way the SVG pot can -- left as-is; the user is planning to draw more illustrations later.
+- **What didn't work on the first try:** nothing broke -- verified CSS integrity and a live request before committing.
