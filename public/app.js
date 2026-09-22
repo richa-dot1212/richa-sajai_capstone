@@ -145,6 +145,7 @@ form.addEventListener('submit', async (e) => {
   source.onerror = () => {
     source.close();
     btn.disabled = false;
+    showError('Lost connection while adapting your recipe. Please try again.');
   };
 });
 

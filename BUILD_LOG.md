@@ -2,7 +2,7 @@
 
 One entry per commit: date, time spent, rough tokens used, what shipped. Filled before each commit/push.
 
-**Running total across the whole project (through the latest entry below): ~23.5 hours, ~400-415K tokens.**
+**Running total across the whole project (through the latest entry below): ~24 hours, ~410-425K tokens.**
 
 ---
 
@@ -160,3 +160,10 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   1. First image-extraction test picked a since-dead SimplyRecipes URL that actually 404s -- the "recipe" was a 404 page's own boilerplate. This correctly triggered the existing `RecipeParseError` safety net (working as designed) but was initially mistaken for a bug; re-verified against real, live URLs instead.
   2. That same dense 404-page content also produced a real `413` (Groq's 8000 token/minute cap) even after trimming the prompt to 10,000 characters -- a page-specific density issue, again really just a symptom of testing against a dead URL.
   3. Genuine, separate bug found while fixing that: shrinking the flat `slice(0, N)` prefix to fit under Groq's token limit risked cutting off the real ingredient section entirely on some pages, since the relevant chunk (found earlier by `fetchRecipeMarkdown`) can have its ingredient list appear many thousands of characters into that chunk, not at the very start. Fixed properly with `windowAroundIngredients()`, which locates the ingredient list first and slices a window around it instead of blindly taking the prefix. Re-verified against the original known-good recipe (still parses all 10 ingredients correctly) and against a second real, live recipe with a genuine photo (all fields -- title, ingredients, instructions, and a real `imageUrl` -- came back correctly).
+
+## 2026-09-22 -- Fix silent stuck-on-progress-screen bug (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~6-8K
+- **What shipped:** user reported the "Checking ingredients and budget" step appearing stuck/spinning forever with no error shown. Traced the actual server log for that run: the job had genuinely failed fast, server-side, with a clear "Not logged into Swiggy yet" message -- `server.js`'s SSE `done`-event dispatch was correct. Real bug was in `public/app.js`: the `EventSource`'s native `onerror` handler (distinct from the `done` event's own `error` field) only closed the connection and re-enabled the submit button -- it never called `showError()`. Any SSE connection drop (server restart, network hiccup, a stale/unknown `jobId`) left the user stranded on the progress screen with no indication anything went wrong. Fixed by having `onerror` call `showError('Lost connection while adapting your recipe. Please try again.')`.
+- **What didn't work on the first try:** nothing broke this round -- found by tracing the exact dispatch chain (server log -> `server.js` SSE loop -> `app.js` event handlers) rather than guessing at the cause.
