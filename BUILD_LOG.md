@@ -2,7 +2,7 @@
 
 One entry per commit: date, time spent, rough tokens used, what shipped. Filled before each commit/push.
 
-**Running total across the whole project (through the latest entry below): ~21.5 hours, ~365-380K tokens.**
+**Running total across the whole project (through the latest entry below): ~23.5 hours, ~400-415K tokens.**
 
 ---
 
@@ -139,3 +139,24 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - Small additive backend change: `agent/workflow.js`'s `buildSummary()` now also returns `title`, `ingredients` (the full scaled list, each annotated with a substituted/bought/unresolved note), and `instructions` -- data the workflow already computed for the saved document but never exposed to the website. No change to any decision logic, MCP call, or workflow step.
   - Verified live end-to-end through the real API (a no-missing-ingredients case, since the Swiggy session had reset on server restart): confirmed the new summary shape renders correctly -- real scaled quantities, real instructions, correct empty states for substitutions/cart/unresolved.
 - **What didn't work on the first try:** nothing broke this round -- the ID/functionality audit habit from the previous redesign (cross-checking every `getElementById` call against the actual markup before running anything) caught the tab/view wiring issues during writing rather than after.
+
+## 2026-09-22 -- Fix screen-switching scroll bug, back button, pill-style tabs (same branch)
+
+- **Time spent:** ~30 min
+- **Rough tokens used:** ~8-10K
+- **What shipped:** user-reported bug: the result screen appeared to render "lower on the same screen" as the progress checklist instead of as a clean separate screen. Real cause: `showView()` correctly toggled the `hidden` attribute, but never reset scroll position -- so the page stayed scrolled to wherever the previous (now-hidden) view had been, making the new view start below the fold. Fixed with `window.scrollTo(0, 0)` inside `showView()`. Also added a back button on the result screen (real Phosphor arrow-left icon) to return to the input screen, since there was previously no way back without a full page reload, and restyled the Ingredients/Directions tabs from an underline nav to two rounded-rectangle toggle buttons per feedback that switchability wasn't visually obvious enough.
+- **What didn't work on the first try:** nothing broke -- this was a targeted bug-fix round; the fix was verified by re-reading the exact `showView()` call sites rather than guessing.
+- *(Note: this entry was added retroactively -- it was missed at commit time and is being recorded now for an accurate log.)*
+
+## 2026-09-22 -- Real recipe photos, gingham "scrapbook" texture (same branch)
+
+- **Time spent:** ~2 hours (real-site testing to find a working image-extraction approach, a second real token-limit bug and its proper fix, and the gingham texture/photo layout)
+- **Rough tokens used:** ~30-35K
+- **What shipped:**
+  - Real recipe photo extraction: `agent/workflow.js` gains `fetchOgImage()`, one extra bounded raw-HTML `fetch_url` call (only when a URL is used, never for pasted text) that regex-extracts `og:image`/`twitter:image`. Wrapped so a missing/failed extraction never affects the rest of the run -- `imageUrl` is just `null`. Exposed via `buildSummary()`. Verified live against real sites: found a genuine dish photo on allrecipes.com, correctly found nothing within the bound on sallysbakingaddiction.com (matches that site's previously-documented extreme ad-script bloat) and on loveandlemons.com (likely client-side-rendered meta tags) -- both are honest, expected outcomes, not failures.
+  - Frontend: the Directions tab now shows a compact, scrapbook-style photo (mounted on a small gingham-backed mat) beside the steps when an image was found; falls back cleanly to steps-only otherwise, including at runtime if the image fails to load (hotlink protection -- `onerror` removes the mat, never a broken-image icon).
+  - Gingham texture: copied the user's own real photo (`Red picnic.jpg`) into `public/images/gingham.jpg` and applied it as a bold, tiled background behind the input screen and behind the Instamart cart note's column, per explicit direction and a provided reference image -- always behind solid opaque cards/notes, never behind text directly.
+- **What didn't work on the first try, and what was changed:**
+  1. First image-extraction test picked a since-dead SimplyRecipes URL that actually 404s -- the "recipe" was a 404 page's own boilerplate. This correctly triggered the existing `RecipeParseError` safety net (working as designed) but was initially mistaken for a bug; re-verified against real, live URLs instead.
+  2. That same dense 404-page content also produced a real `413` (Groq's 8000 token/minute cap) even after trimming the prompt to 10,000 characters -- a page-specific density issue, again really just a symptom of testing against a dead URL.
+  3. Genuine, separate bug found while fixing that: shrinking the flat `slice(0, N)` prefix to fit under Groq's token limit risked cutting off the real ingredient section entirely on some pages, since the relevant chunk (found earlier by `fetchRecipeMarkdown`) can have its ingredient list appear many thousands of characters into that chunk, not at the very start. Fixed properly with `windowAroundIngredients()`, which locates the ingredient list first and slices a window around it instead of blindly taking the prefix. Re-verified against the original known-good recipe (still parses all 10 ingredients correctly) and against a second real, live recipe with a genuine photo (all fields -- title, ingredients, instructions, and a real `imageUrl` -- came back correctly).

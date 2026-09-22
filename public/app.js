@@ -237,8 +237,32 @@ function renderIngredientsTab(summary) {
 
 function renderDirectionsTab(summary) {
   const steps = summary.instructions || [];
-  if (!steps.length) return '<p class="empty">No instructions were found for this recipe.</p>';
-  return `<ol class="directions-list">${steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>`;
+  const stepsHtml = steps.length
+    ? `<ol class="directions-list">${steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>`
+    : '<p class="empty">No instructions were found for this recipe.</p>';
+
+  if (!summary.imageUrl) {
+    return `<div class="directions-columns directions-columns--full">${stepsHtml}</div>`;
+  }
+
+  // onerror removes the whole photo mat gracefully -- some sites block
+  // hotlinking their images, and a missing/failed photo is a fine outcome,
+  // never a broken-image icon.
+  return `
+    <div class="directions-columns">
+      <div class="directions-columns__left">${stepsHtml}</div>
+      <div class="directions-columns__right">
+        <div class="recipe-photo-mat">
+          <img
+            class="recipe-photo"
+            src="${escapeHtml(summary.imageUrl)}"
+            alt="${escapeHtml(summary.title || 'The finished recipe')}"
+            onerror="this.closest('.recipe-photo-mat').remove()"
+          />
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // ---------------------------------------------------------------

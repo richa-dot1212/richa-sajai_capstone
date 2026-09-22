@@ -35,6 +35,11 @@
   --radius-pill: 999px;
 
   --shadow-card: 0 1px 2px rgba(61, 43, 31, 0.05), 0 16px 36px -18px rgba(61, 43, 31, 0.22);
+
+  /* Real gingham tablecloth photo (public/images/gingham.jpg), used as a
+     bold backdrop behind solid opaque cards/sticky-notes -- never behind
+     text directly -- for a "scrapbook on a tablecloth" feel. */
+  --gingham: url('images/gingham.jpg');
 }
 
 * { box-sizing: border-box; }
@@ -87,6 +92,12 @@ body {
 /* ================================================================
    SCREEN 1 -- input
    ================================================================ */
+.view-input {
+  background-image: var(--gingham);
+  background-repeat: repeat;
+  background-size: 380px auto;
+}
+
 .view-input__layout {
   max-width: 1280px;
   margin: 0 auto;
@@ -312,6 +323,14 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   align-items: start;
 }
 
+.ingredients-columns__right {
+  background-image: var(--gingham);
+  background-repeat: repeat;
+  background-size: 260px auto;
+  border-radius: var(--radius-card);
+  padding: clamp(16px, 2.5vw, 24px);
+}
+
 /* Ingredients list */
 .ingredient-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .ingredient-list li {
@@ -385,7 +404,37 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 .total-cost .amount { font-family: var(--font-title); font-size: 1.8rem; font-weight: 700; }
 .total-cost .of-budget { color: var(--ink-soft); font-weight: 600; white-space: nowrap; }
 
-/* Directions */
+/* Directions: steps on the left, a compact scrapbook-style photo on the
+   right when the recipe's own page had one (real og:image extraction --
+   silently absent when a page doesn't have one, never a broken icon). */
+.directions-columns {
+  display: grid;
+  grid-template-columns: 1.3fr 0.9fr;
+  gap: clamp(24px, 4vw, 48px);
+  align-items: start;
+}
+.directions-columns--full { display: block; }
+
+.recipe-photo-mat {
+  position: sticky;
+  top: clamp(24px, 4vw, 56px);
+  background-image: var(--gingham);
+  background-repeat: repeat;
+  background-size: 220px auto;
+  border-radius: var(--radius-card);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+}
+.recipe-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: calc(var(--radius-card) - 8px);
+  border: 6px solid var(--surface);
+  box-shadow: 0 10px 24px -14px rgba(61, 43, 31, 0.4);
+}
+
 .directions-list { list-style: none; margin: 0; padding: 0; counter-reset: step; }
 .directions-list li {
   counter-increment: step;
@@ -414,6 +463,8 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   .view-input__intro { position: static; }
   .brand-title { font-size: clamp(2.4rem, 10vw, 3.2rem); }
   .ingredients-columns { grid-template-columns: 1fr; }
+  .directions-columns { grid-template-columns: 1fr; }
+  .recipe-photo-mat { position: static; }
 }
 @media (max-width: 560px) {
   .row, .field-row { grid-template-columns: 1fr; }

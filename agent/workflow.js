@@ -118,6 +118,56 @@ async function fetchRecipeMarkdown(fetchClient, url, emit) {
   return relevantChunk || combined.slice(-CHUNK * 2);
 }
 
+const INGREDIENT_LINE_PATTERN =
+  /^\s*[-*\d][.)]?\s+.{0,10}\b(cup|cups|tsp|teaspoon|tbsp|tablespoon|gram|grams|oz|ounce|ounces|ml|lb|pound|pounds)\b/im;
+
+/**
+ * Cap content sent to the LLM to a token-budget-friendly size, but window
+ * it around wherever the ingredient list actually starts rather than
+ * blindly taking the first N characters -- a real bug found in testing:
+ * shrinking the flat prefix to fit Groq's per-minute token limit clipped
+ * straight past the ingredient section on some pages, since a match found
+ * earlier (in fetchRecipeMarkdown) can still be many thousands of
+ * characters into the returned chunk.
+ */
+function windowAroundIngredients(content, maxLen) {
+  if (content.length <= maxLen) return content;
+  const matchIndex = content.search(INGREDIENT_LINE_PATTERN);
+  if (matchIndex === -1) return content.slice(0, maxLen);
+  const start = Math.max(0, matchIndex - 1500);
+  return content.slice(start, start + maxLen);
+}
+
+/**
+ * Best-effort extraction of the recipe's own photo (og:image, falling back
+ * to twitter:image) from a bounded raw-HTML fetch. Real-world sites vary a
+ * lot here: some serve it immediately, some (heavily ad-bloated pages, or
+ * client-side-rendered sites) don't within a reasonable fetch bound. This
+ * must never affect the rest of the run either way -- a missing image is a
+ * perfectly fine outcome, so every failure path just returns null.
+ */
+async function fetchOgImage(fetchClient, url, emit) {
+  try {
+    const result = await fetchClient.callTool('fetch_url', { url, raw: true, max_length: 50000, start_index: 0 });
+    const text = result.content && result.content[0] && result.content[0].text;
+    if (!text) return null;
+    const match =
+      text.match(/<meta[^>]+property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+      text.match(/<meta[^>]+content=["']([^"']+)["'][^>]*property=["']og:image["']/i) ||
+      text.match(/<meta[^>]+name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i) ||
+      text.match(/<meta[^>]+content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
+    if (match) {
+      emit('observe', `Found a recipe photo: ${match[1]}`);
+      return match[1];
+    }
+    emit('observe', 'No recipe photo found on the page (not unusual -- varies a lot by site)');
+    return null;
+  } catch (err) {
+    emit('observe', `Could not check for a recipe photo (${err.message}) -- continuing without one`);
+    return null;
+  }
+}
+
 function runWorkflow(input, context = {}) {
   const emitter = new EventEmitter();
   const log = [];
@@ -165,11 +215,13 @@ function runWorkflow(input, context = {}) {
       if (input.recipeText) {
         emit('perceive', 'Using the recipe text you pasted directly (skipping the Fetch MCP)');
         recipeContent = input.recipeText;
+        state.imageUrl = null; // nothing to pull a photo from -- pasted text, not a page
       } else {
         emit('perceive', `Retrieving recipe from ${input.recipeUrl} via Fetch MCP`);
         await fetchClient.start();
         recipeContent = await fetchRecipeMarkdown(fetchClient, input.recipeUrl, emit);
         emit('observe', `Retrieved ${recipeContent.length} characters of recipe content`);
+        state.imageUrl = await fetchOgImage(fetchClient, input.recipeUrl, emit);
       }
 
       emit('reason', 'Asking the LLM to parse the recipe into structured ingredients/instructions');
@@ -181,7 +233,7 @@ function runWorkflow(input, context = {}) {
           'ingredient list (name + quantity as written), and its numbered cooking instructions. ' +
           'If the content does not actually contain a real recipe, return an empty ingredients ' +
           'array and an empty instructions array rather than guessing.',
-        prompt: `Recipe content:\n\n${recipeContent.slice(0, 12000)}`,
+        prompt: `Recipe content:\n\n${windowAroundIngredients(recipeContent, 10000)}`,
         responseSchema: RECIPE_SCHEMA,
       });
 
@@ -405,6 +457,7 @@ function buildSummary(state) {
   return {
     title: state.recipe.title,
     servings: Number(state.input.servingSize),
+    imageUrl: state.imageUrl || null,
     ingredients,
     instructions: state.finalInstructions,
     missingIngredients: state.missingIngredients.map((m) => m.name),
