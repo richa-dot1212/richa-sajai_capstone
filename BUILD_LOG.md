@@ -203,3 +203,14 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
 - **Rough tokens used:** ~7-8K
 - **What shipped:** per feedback against a new reference screenshot: the gingham band was an inset rounded box with cream margins showing on the sides -- moved it outside the page's padded wrapper (`.view-input { padding: 0 }`, hero is now a direct full-width child of the view) so it spans edge-to-edge like a real page header, matching the reference. Restructured the input form from a single stacked column into two columns matching the reference's composition exactly: "The recipe" (URL/paste-text) on the left, everything else (What's missing, Servings & budget, Anything else, submit button) stacked in a column on the right.
 - **What didn't work on the first try:** nothing broke -- straightforward CSS restructuring, verified the brace count and a live `curl` after.
+
+## 2026-09-23 -- Real fonts (Slackey + Anaktoria), lighter gingham, bigger illustrations (same branch)
+
+- **Time spent:** ~30 min
+- **Rough tokens used:** ~9-10K
+- **What shipped:**
+  - Vendored the two real fonts the user actually wanted: **Slackey** (Google Fonts, OFL, fetched directly from `fonts.gstatic.com`) for titles, and **Anaktoria** (the exact font Canva uses -- public domain per its designer George Douros, downloaded from Font Library's official package) for the accent/subtitle text. Anaktoria only ships as `.ttf`; converted to `.woff2` with `ttf2woff2` via `npx` to match the project's self-hosting convention (no CDN links, same as Karla/Caveat).
+  - Lightened the CSS gingham band: dropped the stripe alpha from 0.55 to 0.25 so the darkest (double-overlap) squares land close to the requested `#f9ecab`, worked out by solving the alpha-blend equation for the overlap color rather than guessing.
+  - Enlarged the 4 hero illustrations (`clamp(70px,9vw,110px)` -> `clamp(110px,13vw,170px)`) and nudged their positions outward to fill the wider header.
+  - Removed the "Home cooking, on budget" kicker line per feedback, and reduced the hero's vertical padding now that there's one less line of content.
+- **What didn't work on the first try:** nothing broke -- confirmed each new font file serves with a real 200 and CSS brace count stays balanced before committing.

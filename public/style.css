@@ -27,11 +27,8 @@
   --error-tint: #f5e3d6;
   --error-border: #e8c9ac;
 
-  /* --font-title becomes 'SwungNote' once the font file/license is
-     confirmed (see plan); --font-accent becomes 'Anaktoria' likewise.
-     Using safe fallbacks for both until those files are vendored. */
-  --font-title: 'Caveat', 'Segoe Script', cursive;
-  --font-accent: Georgia, 'Times New Roman', serif;
+  --font-title: 'Slackey', 'Caveat', 'Segoe Script', cursive;
+  --font-accent: 'Anaktoria', Georgia, 'Times New Roman', serif;
   --font-body: 'Karla', system-ui, sans-serif;
 
   --radius-card: 20px;
@@ -50,8 +47,8 @@
      darker yellow, giving a woven-check look. Confined to header bands
      only (never behind dense reading text). */
   --gingham-band:
-    repeating-linear-gradient(0deg, transparent, transparent 22px, rgba(247, 209, 84, 0.55) 22px, rgba(247, 209, 84, 0.55) 44px),
-    repeating-linear-gradient(90deg, transparent, transparent 22px, rgba(247, 209, 84, 0.55) 22px, rgba(247, 209, 84, 0.55) 44px),
+    repeating-linear-gradient(0deg, transparent, transparent 22px, rgba(247, 209, 84, 0.25) 22px, rgba(247, 209, 84, 0.25) 44px),
+    repeating-linear-gradient(90deg, transparent, transparent 22px, rgba(247, 209, 84, 0.25) 22px, rgba(247, 209, 84, 0.25) 44px),
     #fdf6df;
 }
 
@@ -119,21 +116,21 @@ body {
   position: relative;
   text-align: center;
   width: 100%;
-  padding: clamp(40px, 7vw, 64px) clamp(20px, 5vw, 40px);
+  padding: clamp(24px, 4vw, 40px) clamp(20px, 5vw, 40px);
 }
 
 .hero-illustration {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: clamp(70px, 9vw, 110px);
+  width: clamp(110px, 13vw, 170px);
   height: auto;
   opacity: 0.9;
 }
-.hero-illustration--cookie { left: 0; top: 20%; }
-.hero-illustration--pancake { left: 6%; top: 68%; }
-.hero-illustration--macaron { right: 4%; top: 18%; }
-.hero-illustration--cake { right: 0; top: 66%; }
+.hero-illustration--cookie { left: -1%; top: 18%; }
+.hero-illustration--pancake { left: 4%; top: 72%; }
+.hero-illustration--macaron { right: 2%; top: 16%; }
+.hero-illustration--cake { right: -1%; top: 70%; }
 @media (max-width: 900px) {
   .hero-illustration { display: none; }
 }
