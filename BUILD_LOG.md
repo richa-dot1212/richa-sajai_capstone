@@ -236,3 +236,10 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - Removed the blue "notice" callout box from the progress screen entirely (unnecessary per feedback) -- deleted its markup, CSS, and the two `app.js` lines that populated it.
   - Fixed the Instamart cart note blending into the page background -- `--paper-note` was too close to `--paper` (both pale cream); changed it to a more distinct manila-paper tone (`#f7ecc4`, darker line color to match) so the note visibly stands out as its own object on the page.
 - **What didn't work on the first try:** nothing broke -- straightforward reverts/tweaks, verified CSS integrity and a live request before committing.
+
+## 2026-09-23 -- Whiter Instamart cart note (same branch)
+
+- **Time spent:** ~10 min
+- **Rough tokens used:** ~3-4K
+- **What shipped:** the cart note's manila-yellow paper tone from the last contrast fix still read as too yellow -- changed `--paper-note` to a much whiter off-white (`#fefdf8`) with a lighter line color, so the note now clearly reads as a distinct white paper object against the warmer cream page background.
+- **What didn't work on the first try / open item:** attempted to source the real SwungNote font file (now that the user confirmed this is a private, non-commercial project, satisfying its "personal use" license) from several free-font mirror sites -- blogfonts.com and dafontfree.net are Cloudflare-gated against scripted fetches, and onlinewebfonts.com hides its real download link behind obfuscated JS rather than a direct URL (also a signal its redistribution rights are murkier than a real foundry/library source). Asked the user to download the file themselves and hand it over, the same pattern already working for the illustrations and Swiggy logo, rather than fight an untrustworthy source.
