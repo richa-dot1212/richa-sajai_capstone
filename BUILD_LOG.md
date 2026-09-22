@@ -261,3 +261,10 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - Added "Your adapted recipe" under the recipe title on the result screen (in the same italic accent style as the home subtitle) since that area read as too empty.
   - Noted for later: the 4 hand-drawn hero illustrations have their own blue baked into the PNG pixels (from the user's own drawing) and can't be recolored via CSS the way the SVG pot can -- left as-is; the user is planning to draw more illustrations later.
 - **What didn't work on the first try:** nothing broke -- verified CSS integrity and a live request before committing.
+
+## 2026-09-23 -- Torn-paper cart note + gingham backdrop (scrapbook look, same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~5-6K
+- **What shipped:** per feedback that the plain rectangular note was "throwing off" the ingredients page -- replaced the old perforated-left-edge-only treatment with an all-around jagged `clip-path` silhouette (torn on all 4 sides, not just a punched-hole left margin) plus a slight rotation, so it reads as a real torn scrap of paper rather than a rounded card. Reintroduced the yellow CSS gingham band as a backdrop behind the note's column (`.ingredients-columns__right`) -- this is the same gingham-behind-the-note idea from an earlier round that was reverted for looking wrong on the *full input screen background*; here it's confined to just the note's column on the result screen, which is a different, more deliberate scrapbook composition the user asked for directly this time.
+- **What didn't work on the first try:** nothing broke -- verified CSS integrity and a live request before committing; the exact torn-edge polygon may want a second pass once seen live (jag depth/frequency is easy to retune in one place).
