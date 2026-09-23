@@ -367,3 +367,15 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - **Home hero:** removed the vanilla illustration, reverted cookie/pancake to their pre-vanilla positions, moved cake further left and macaron further down (it was sitting close enough to the top edge to read as cropped).
   - **Removed the vanilla flourish** that closed out the ingredients tab below the cart note (its CSS rule removed too, not just the markup).
 - **What didn't work on the first try:** nothing broke -- verified CSS brace balance, that the two vanilla removals left zero references behind in all three files, and pulled the served CSS directly to confirm the stepper is actually `flex-direction: row` rather than trusting the source edit alone.
+
+## 2026-09-23 -- Bigger illustrations across progress/ingredients/directions, overflow safeguard (same branch)
+
+- **Time spent:** ~30 min
+- **Rough tokens used:** ~9-10K
+- **What shipped:**
+  - **Sized up again, all three tiers, on both the result tabs and the progress screen** -- result band 210 -> 250px / peek 145 -> 175px (with the tab-specific fish/bowl overrides growing proportionally, now 215-220px); progress screen 270 -> 300px / 195 -> 225px / 155 -> 185px. Feedback was that the previous rounds' sizing still read as scattered and left the pages feeling empty.
+  - **Guarded against real horizontal overflow risk:** several progress-screen illustrations sit at small negative left/right percentages so they bleed slightly past the header band's edge (an intentional "a little outside the checkered part is fine" effect) -- pulled those offsets in a bit and added `overflow-x: hidden` on `body` as a blanket guarantee that no illustration, at any viewport width, can ever force a horizontal scrollbar. This is a global safety net rather than clipping any individual element, so the intentional bleed effect still reads correctly.
+  - **Shifted the pot + checklist higher** on the progress screen via asymmetric padding on `.progress-body` (less at the top, more reserved at the bottom) so the centred content sits closer to the header instead of dead-centre in the remaining viewport height.
+  - **Home hero:** moved the cake illustration further down (48% -> 58%) -- at the illustrations' current size the gap to macaron above it was smaller than the images themselves, so they were genuinely overlapping, not just visually close.
+  - **Ingredients cart note:** given a `max-width` and pushed right within its column (`margin-left: auto`) per feedback that it should sit further right and take up less width.
+- **What didn't work on the first try:** nothing broke -- verified CSS brace balance and confirmed the new `overflow-x: hidden` rule is actually present in the served stylesheet (not just the source file) before committing.
