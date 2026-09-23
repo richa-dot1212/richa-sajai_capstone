@@ -19,16 +19,74 @@ function escapeHtml(str) {
 }
 
 // ---------------------------------------------------------------
+// Motion helpers
+// ---------------------------------------------------------------
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+// Fades content up as it comes into view. IntersectionObserver rather than
+// a scroll listener (no work on scroll frames), and each element is
+// unobserved once shown so scrolling back up never replays anything.
+const revealObserver =
+  'IntersectionObserver' in window
+    ? new IntersectionObserver(
+        (entries, obs) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add('is-visible');
+            obs.unobserve(entry.target);
+          });
+        },
+        { rootMargin: '0px 0px -8% 0px' }
+      )
+    : null;
+
+function revealIn(root) {
+  const items = root.querySelectorAll('[data-reveal]:not(.is-visible)');
+  // No observer support, or the visitor asked for stillness: show it all now.
+  if (!revealObserver || reduceMotion.matches) {
+    items.forEach((el) => el.classList.add('is-visible'));
+    return;
+  }
+  items.forEach((el, i) => {
+    el.style.setProperty('--reveal-i', String(i));
+    revealObserver.observe(el);
+  });
+}
+
+// ---------------------------------------------------------------
 // View switching (3 full-screen views: input, progress, result;
 // error can interrupt any of them).
 // ---------------------------------------------------------------
+let viewSwapTimer = null;
+
 function showView(id) {
-  document.querySelectorAll('.view').forEach((el) => { el.hidden = el.id !== id; });
-  // Without this, switching views leaves the page at whatever scroll
-  // position the previous (now-hidden) view was at -- the new view then
-  // renders starting below the fold, looking like it "appeared lower on
-  // the same screen" instead of a fresh screen.
-  window.scrollTo(0, 0);
+  const target = document.getElementById(id);
+  const current = Array.from(document.querySelectorAll('.view')).find((v) => !v.hidden);
+
+  const swap = () => {
+    document.querySelectorAll('.view').forEach((el) => {
+      el.classList.remove('is-leaving');
+      el.hidden = el.id !== id;
+    });
+    // Without this, switching views leaves the page at whatever scroll
+    // position the previous (now-hidden) view was at -- the new view then
+    // renders starting below the fold, looking like it "appeared lower on
+    // the same screen" instead of a fresh screen.
+    window.scrollTo(0, 0);
+    if (target) revealIn(target);
+  };
+
+  // Latest call always wins, so a fast error-during-transition can't land
+  // the page on the wrong screen.
+  clearTimeout(viewSwapTimer);
+
+  if (!current || current === target || reduceMotion.matches) {
+    swap();
+    return;
+  }
+
+  current.classList.add('is-leaving');
+  viewSwapTimer = setTimeout(swap, 170);
 }
 
 const form = document.getElementById('adapt-form');
@@ -64,38 +122,55 @@ async function loadSwiggyStatus() {
 }
 loadSwiggyStatus();
 
+// The input screen is visible straight from the markup and never goes
+// through showView() on first load, so its reveal targets need starting
+// here -- otherwise the form card would sit at opacity 0 forever.
+revealIn(document);
+
 function renderStages(reachedKeys, allDone) {
-  stageList.innerHTML = '';
   const lastReached = reachedKeys[reachedKeys.length - 1];
+
+  // Build the rows once, then only flip their state classes. Rebuilding the
+  // list on every update would replay the "completed" pop on every finished
+  // row each time a new one lands, which reads as flicker.
+  if (stageList.children.length !== STAGES.length) {
+    stageList.innerHTML = STAGES.map(
+      (stage, i) =>
+        `<li class="stage-pending" style="--stage-i:${i}">${icon('circle')}<span>${escapeHtml(stage.label)}</span></li>`
+    ).join('');
+  }
+
   let doneCount = 0;
-  STAGES.forEach((stage) => {
-    const li = document.createElement('li');
-    const reachedIndex = reachedKeys.indexOf(stage.key);
+  STAGES.forEach((stage, i) => {
+    const li = stageList.children[i];
+    if (!li) return;
     const isActive = !allDone && stage.key === lastReached;
-    const isDone = reachedIndex !== -1 && !isActive;
+    const isDone = reachedKeys.indexOf(stage.key) !== -1 && !isActive;
     if (isDone || allDone) doneCount++;
-    li.className = isDone ? 'stage-done' : isActive ? 'stage-active' : 'stage-pending';
-    const iconName = isDone ? 'checkCircle' : 'circle';
-    li.innerHTML = `${icon(iconName)}<span>${stage.label}</span>`;
-    stageList.appendChild(li);
+    const cls = isDone ? 'stage-done' : isActive ? 'stage-active' : 'stage-pending';
+    if (li.className === cls) return;
+    li.className = cls;
+    const path = li.querySelector('path');
+    if (path) path.setAttribute('d', ICONS[isDone ? 'checkCircle' : 'circle']);
   });
+
   updatePotFill(allDone ? STAGES.length : doneCount + (reachedKeys.length > doneCount ? 0.5 : 0), STAGES.length);
 }
 
 // Fills the pot illustration on the progress screen a fraction at a time as
 // stages complete, purely a delight touch -- has no effect on the real run.
+// Driven by transform (scale + translate) rather than SVG geometry so the
+// browser can composite it instead of re-rasterising the shape each frame.
+const POT_BOTTOM = 178;
+const POT_TOP = 74;
+
 function updatePotFill(completedUnits, totalUnits) {
   const liquid = document.getElementById('pot-liquid');
   const wave = document.getElementById('pot-liquid-wave');
   if (!liquid || !wave) return;
-  const POT_BOTTOM = 178;
-  const POT_TOP = 74;
   const fraction = totalUnits ? Math.min(1, completedUnits / totalUnits) : 0;
-  const y = POT_BOTTOM - fraction * (POT_BOTTOM - POT_TOP);
-  const height = POT_BOTTOM - y;
-  liquid.setAttribute('y', y);
-  liquid.setAttribute('height', height);
-  wave.setAttribute('transform', `translate(0, ${y - POT_BOTTOM})`);
+  liquid.style.transform = `scaleY(${fraction})`;
+  wave.style.transform = `translateY(${-fraction * (POT_BOTTOM - POT_TOP)}px)`;
 }
 
 form.addEventListener('submit', async (e) => {
@@ -179,6 +254,9 @@ function setActiveTab(name) {
   });
   document.querySelectorAll('.tab-panel').forEach((p) => {
     p.hidden = p.dataset.panel !== name;
+    // A hidden panel has no size, so its reveal targets never intersect.
+    // Kick them off once the panel is actually on screen.
+    if (!p.hidden) revealIn(p);
   });
 }
 
@@ -231,11 +309,11 @@ function renderIngredientsTab(summary) {
 
   return `
     <div class="ingredients-columns">
-      <div class="ingredients-columns__left">
+      <div class="ingredients-columns__left" data-reveal>
         <ul class="ingredient-list">${ingredientRows}</ul>
         ${unresolved}
       </div>
-      <div class="ingredients-columns__right">
+      <div class="ingredients-columns__right" data-reveal>
         <div class="cart-note">
           <h3><img class="cart-note__logo" src="images/swiggy-logo.webp" alt="" onerror="this.remove()" />From the Instamart cart</h3>
           <p class="cart-note__sub">Already added, ready for checkout in the app</p>
@@ -258,7 +336,7 @@ function renderDirectionsTab(summary) {
     : '<p class="empty">No instructions were found for this recipe.</p>';
 
   if (!summary.imageUrl) {
-    return `<div class="directions-columns directions-columns--full">${stepsHtml}</div>`;
+    return `<div class="directions-columns directions-columns--full" data-reveal>${stepsHtml}</div>`;
   }
 
   // onerror removes the whole photo mat gracefully -- some sites block
@@ -266,8 +344,8 @@ function renderDirectionsTab(summary) {
   // never a broken-image icon.
   return `
     <div class="directions-columns">
-      <div class="directions-columns__left">${stepsHtml}</div>
-      <div class="directions-columns__right">
+      <div class="directions-columns__left" data-reveal>${stepsHtml}</div>
+      <div class="directions-columns__right" data-reveal>
         <div class="recipe-photo-mat">
           <img
             class="recipe-photo"

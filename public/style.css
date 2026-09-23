@@ -37,6 +37,13 @@
 
   --shadow-card: 0 1px 2px rgba(61, 43, 31, 0.05), 0 16px 36px -18px rgba(61, 43, 31, 0.22);
 
+  /* One easing and three durations for the whole site, so every
+     transition feels like it belongs to the same object. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 0.18s;
+  --dur-base: 0.3s;
+  --dur-slow: 0.5s;
+
   /* Real gingham tablecloth photo (public/images/gingham.jpg) -- superseded
      by --gingham-band below for the header bands, kept only in case a
      future spot wants the photo texture again. */
@@ -76,18 +83,101 @@ body {
   font-style: italic;
 }
 
+/* ================================================================
+   MOTION SYSTEM
+   Fluid-CSS tier: transform/opacity only, 180-500ms, one shared easing.
+   Every animation here answers "what does this communicate?" --
+   hierarchy, sequence, feedback, or state change. Nothing loops
+   forever except the two live-status indicators on the progress
+   screen (steam + active-stage pulse), which stop when the run ends.
+   All of it collapses to static under prefers-reduced-motion.
+   ================================================================ */
+
 /* ---------- Full-screen view mechanics ---------- */
 .view {
   min-height: 100dvh;
   width: 100%;
   padding: clamp(24px, 4vw, 56px);
 }
+
 @media (prefers-reduced-motion: no-preference) {
-  .view:not([hidden]) { animation: view-in 0.4s ease both; }
+  /* Screen arrival: the container fades, its contents rise in sequence.
+     Communicates hierarchy -- the eye lands on the title, then the
+     supporting line, then the thing to click. */
+  .view:not([hidden]) { animation: view-in var(--dur-base) ease both; }
+
+  .view:not([hidden]) .brand-title,
+  .view:not([hidden]) .subtitle,
+  .view:not([hidden]) .swiggy-step,
+  .view:not([hidden]) .result-header-band__row,
+  .view:not([hidden]) .recipe-title,
+  .view:not([hidden]) .recipe-subtitle,
+  .view:not([hidden]) .tabs,
+  .view:not([hidden]) .progress-header-band .kicker,
+  .view:not([hidden]) .progress-header-band h2,
+  .view:not([hidden]) .pot-wrap {
+    animation: enter-rise var(--dur-slow) var(--ease-out) both;
+    animation-delay: calc(var(--enter-i, 0) * 80ms);
+  }
+
+  /* The hand-drawn assets settle in like stickers being placed,
+     which is the scrapbook idea the whole page is built on.
+     Fill mode is `backwards`, not `both`, so once the animation ends the
+     element goes back to its own CSS and the hover nudge still works. */
+  .view:not([hidden]) .hero-illustration {
+    animation: sticker-in 0.6s var(--ease-out) backwards;
+    animation-delay: calc(var(--enter-i, 0) * 80ms + 120ms);
+  }
+
+  /* Leaving a screen: a short fade-up so input -> progress -> result
+     reads as one flow changing state, not three hard cuts. */
+  .view.is-leaving { animation: view-leave 0.17s ease-in both; }
 }
+
+.brand-title { --enter-i: 1; }
+.subtitle { --enter-i: 2; }
+.swiggy-step { --enter-i: 3; }
+.hero-illustration--cookie { --enter-i: 1; }
+.hero-illustration--macaron { --enter-i: 2; }
+.hero-illustration--pancake { --enter-i: 3; }
+.hero-illustration--cake { --enter-i: 4; }
+.result-header-band__row { --enter-i: 0; }
+.recipe-title { --enter-i: 1; }
+.recipe-subtitle { --enter-i: 2; }
+.tabs { --enter-i: 3; }
+.progress-header-band .kicker { --enter-i: 0; }
+.progress-header-band h2 { --enter-i: 1; }
+.pot-wrap { --enter-i: 2; }
+
 @keyframes view-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes view-leave {
+  to { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes enter-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sticker-in {
+  from { opacity: 0; transform: translateY(-50%) scale(0.82) rotate(-7deg); }
+  to { opacity: 0.9; transform: translateY(-50%) scale(1) rotate(0); }
+}
+
+/* ---------- Scroll reveal ----------
+   Content below the fold fades up as you reach it, so a long recipe
+   unfolds rather than landing as a wall. Driven by IntersectionObserver
+   in app.js (never a scroll listener), and one-shot -- once revealed an
+   element stays put, so scrolling back up never re-animates anything. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+    transition-delay: calc(var(--reveal-i, 0) * 70ms);
+  }
+  [data-reveal].is-visible { opacity: 1; transform: none; }
 }
 
 /* ---------- Cards ---------- */
@@ -127,11 +217,18 @@ body {
   width: clamp(120px, 14vw, 190px);
   height: auto;
   opacity: 0.9;
+  transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) ease;
 }
 .hero-illustration--cookie { left: -1%; top: 18%; }
 .hero-illustration--pancake { left: 4%; top: 72%; }
 .hero-illustration--macaron { right: 2%; top: 16%; }
 .hero-illustration--cake { right: -1%; top: 70%; }
+/* Nudging a drawing makes it feel like a physical sticker on the page,
+   which is the whole scrapbook conceit. */
+.hero-illustration:hover {
+  transform: translateY(-50%) scale(1.05) rotate(2deg);
+  opacity: 1;
+}
 @media (max-width: 900px) {
   .hero-illustration { display: none; }
 }
@@ -238,18 +335,30 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border-soft); }
 
-/* ---------- Buttons ---------- */
+/* ---------- Buttons ----------
+   Hover lifts the button and nudges its icon in the direction the
+   action goes (forward / back / down), so the motion previews the
+   result. Press pushes it back down -- physical feedback. */
 .btn-primary {
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   font-family: var(--font-body); font-size: 16px; font-weight: 700;
   color: var(--accent-contrast); background: var(--accent);
   border: none; border-radius: var(--radius-control);
   padding: 15px 20px; cursor: pointer;
-  transition: background-color 0.15s ease, transform 0.1s ease;
+  transition: background-color var(--dur-fast) ease,
+              transform var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
 }
-.btn-primary:hover { background: color-mix(in srgb, var(--accent) 80%, black); }
-.btn-primary:active { transform: scale(0.98); }
-.btn-primary:disabled { opacity: 0.6; cursor: default; transform: none; }
+.btn-primary .icon { transition: transform var(--dur-base) var(--ease-out); }
+.btn-primary:hover {
+  background: color-mix(in srgb, var(--accent) 80%, black);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 22px -12px color-mix(in srgb, var(--accent) 75%, transparent);
+}
+.btn-primary:hover .icon { transform: translateX(4px); }
+.btn-primary:active { transform: translateY(0) scale(0.98); box-shadow: none; }
+.btn-primary:disabled { opacity: 0.6; cursor: default; transform: none; box-shadow: none; }
+.btn-primary:disabled .icon { transform: none; }
 
 .btn-secondary {
   display: inline-flex; align-items: center; gap: 8px;
@@ -257,9 +366,15 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   text-decoration: none; background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius-control);
   padding: 10px 16px; cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color var(--dur-fast) ease,
+              background-color var(--dur-fast) ease,
+              transform var(--dur-fast) var(--ease-out);
 }
-.btn-secondary:hover { border-color: var(--accent); background: var(--accent-tint); }
+.btn-secondary .icon { transition: transform var(--dur-base) var(--ease-out); }
+.btn-secondary:hover { border-color: var(--accent); background: var(--accent-tint); transform: translateY(-2px); }
+.btn-secondary:active { transform: translateY(0) scale(0.98); }
+/* The download arrow drops, matching what the button does. */
+#download-link:hover .icon { transform: translateY(3px); }
 
 /* ================================================================
    SCREEN 2 -- progress
@@ -301,7 +416,20 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 .pot-illustration { width: 100%; height: auto; overflow: visible; }
 .pot-outline { stroke: var(--accent-strong); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
 .pot-outline--thick { stroke-width: 9; }
-#pot-liquid, #pot-liquid-wave { fill: var(--accent); transition: y 0.7s ease, height 0.7s ease, transform 0.7s ease; }
+
+/* The fill is driven by scaleY from the pot's base rather than by
+   animating the rect's height, so it runs on the compositor. */
+#pot-liquid {
+  fill: var(--accent);
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transform: scaleY(0);
+  transition: transform 0.8s var(--ease-out);
+}
+#pot-liquid-wave {
+  fill: var(--accent);
+  transition: transform 0.8s var(--ease-out);
+}
 .pot-steam { stroke: var(--ink-faint); stroke-width: 4; stroke-linecap: round; opacity: 0.7; animation: steam-drift 3s ease-in-out infinite; }
 .pot-steam--2 { animation-delay: 1.2s; }
 @keyframes steam-drift {
@@ -323,18 +451,43 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   position: relative; z-index: 1; width: 30px; height: 30px; padding: 6px;
   border-radius: 50%; background: var(--surface); color: var(--ink-faint); flex-shrink: 0;
 }
+.stage-list li { transition: color var(--dur-base) ease; }
 .stage-list li.stage-active { color: var(--ink); }
 .stage-list li.stage-active .icon { color: var(--accent); animation: pulse-ring 1.6s ease-in-out infinite; }
 .stage-list li.stage-done { color: var(--ink); }
 .stage-list li.stage-done .icon { color: var(--accent-strong); }
 
+@media (prefers-reduced-motion: no-preference) {
+  /* Checklist builds top-to-bottom so it reads as a sequence of steps. */
+  .stage-list li {
+    animation: enter-rise 0.45s var(--ease-out) both;
+    animation-delay: calc(var(--stage-i, 0) * 90ms);
+  }
+  /* Only the row that just finished pops -- app.js updates rows in place
+     rather than rebuilding the list, so completed rows stay still. */
+  .stage-list li.stage-done .icon { animation: stage-pop 0.45s var(--ease-out); }
+}
+@keyframes stage-pop {
+  0% { transform: scale(0.65); }
+  60% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
 @keyframes pulse-ring {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 35%, transparent); }
   50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent); }
 }
+/* Reduced motion is not negotiable: everything above collapses to an
+   instant state change. Nothing is hidden or broken by this -- the
+   scroll-reveal rules live inside a no-preference block, so content is
+   simply visible from the start. */
 @media (prefers-reduced-motion: reduce) {
-  .stage-list li.stage-active .icon { animation: none; }
-  .view:not([hidden]) { animation: none; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ================================================================
@@ -366,9 +519,12 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   display: inline-flex; align-items: center; gap: 8px;
   font: inherit; font-weight: 700; font-size: 14px; color: var(--ink-soft);
   background: none; border: none; padding: 6px 0; cursor: pointer;
-  transition: color 0.15s ease;
+  transition: color var(--dur-fast) ease;
 }
+.back-btn .icon { transition: transform var(--dur-base) var(--ease-out); }
 .back-btn:hover { color: var(--accent-strong); }
+/* Arrow slides back the way the button takes you. */
+.back-btn:hover .icon { transform: translateX(-4px); }
 
 .recipe-title {
   font-family: var(--font-title); font-weight: 700; color: var(--accent-strong);
@@ -398,7 +554,10 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   padding: 10px 24px; cursor: pointer; border-radius: var(--radius-pill);
   transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
+.tab-btn { transition: color var(--dur-fast) ease, background-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
 .tab-btn:hover { color: var(--ink); }
+.tab-btn:hover:not(.is-active) { transform: translateY(-1px); }
+.tab-btn:active { transform: scale(0.97); }
 .tab-btn.is-active {
   color: var(--accent-contrast);
   background: var(--accent);
@@ -406,6 +565,15 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 }
 
 .tab-panel[hidden] { display: none; }
+/* Switching tabs fades the new panel in, so the swap reads as the same
+   page changing view rather than the content blinking. */
+@media (prefers-reduced-motion: no-preference) {
+  .tab-panel:not([hidden]) { animation: tab-in var(--dur-base) var(--ease-out) both; }
+}
+@keyframes tab-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
 
 /* Ingredients tab: list on the left, Instamart paper note on the right */
 .ingredients-columns {
