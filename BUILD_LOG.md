@@ -353,3 +353,17 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - **Home hero:** added 2 more illustrations (vanilla, cheese -- reused from elsewhere, same size as the existing 4) alongside a home-subtitle font-size nudge from 18px to 19px ("just slightly" bigger).
   - **Progress-screen art:** all 3 size tiers increased again (165-240px / 115-165px / 90-135px) per feedback that the previous round's bump still read as too small.
 - **What didn't work on the first try:** none of this round broke -- verified CSS brace balance, that every referenced class has a matching rule, and that every referenced image file exists before committing.
+
+## 2026-09-23 -- Horizontal progress stepper, per-illustration nudges, note shrink round 2 (same branch)
+
+- **Time spent:** ~40 min
+- **Rough tokens used:** ~13-15K
+- **What shipped:**
+  - **Progress checklist restructured left-to-right:** was a vertical list with a line down the left edge; now each stage is its own column (icon over label) in a row, connected by a horizontal line running through the icons instead. Widened `.progress-body` from 480px to 640px to give 4 labeled columns enough room, and added a small-screen font-size drop so it doesn't get too cramped under 560px.
+  - **Progress-screen illustrations bigger again** (now 190-270px / 135-195px / 110-155px across the 3 tiers) and deliberately de-mirrored: herb and leaf sit at different heights instead of the same, and all three tiers pushed further toward the edges -- "spread out" rather than everything clustered at the same distance from centre.
+  - **Per-tab illustration nudges:** rosemary (ingredients) and fish (directions) pulled inward from the edge via tab-scoped selectors so the change doesn't affect the other tab's shared classes; fish sized up specifically; the olive-basket bowl pulled further inward on directions too.
+  - **Cart note, round 2 of shrinking:** padding, margins and every font size inside it (heading, sub, list items, total-cost) reduced again after the previous round's shrink still read as too big; the kraft-textured column around it padded down to match. Swiggy logo increased 38px -> 56px, the opposite direction, since it read as too small next to the now-smaller heading.
+  - **"Adapted ingredient measurements" subheading** made larger (15px -> 22px) and switched to the accent blue plus bold weight, so it reads as a real subheading rather than a caption.
+  - **Home hero:** removed the vanilla illustration, reverted cookie/pancake to their pre-vanilla positions, moved cake further left and macaron further down (it was sitting close enough to the top edge to read as cropped).
+  - **Removed the vanilla flourish** that closed out the ingredients tab below the cart note (its CSS rule removed too, not just the markup).
+- **What didn't work on the first try:** nothing broke -- verified CSS brace balance, that the two vanilla removals left zero references behind in all three files, and pulled the served CSS directly to confirm the stepper is actually `flex-direction: row` rather than trusting the source edit alone.

@@ -330,8 +330,6 @@ function renderIngredientsTab(summary) {
           <span class="total-cost__label">Total spent<span class="amount">₹${summary.totalCost}</span></span>
           <span class="of-budget">of ₹${summary.budget} budget</span>
         </div>
-
-        <img class="flourish flourish--vanilla" src="images/illustrations/vanilla.png" alt="" loading="lazy" />
       </div>
     </div>
   `;
