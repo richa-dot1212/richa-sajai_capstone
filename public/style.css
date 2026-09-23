@@ -423,7 +423,7 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
    and the centred kicker/heading text. */
 .progress-art {
   position: absolute;
-  width: clamp(215px, 24vw, 300px);
+  width: clamp(180px, 20vw, 250px);
   height: auto;
   /* Resting, always-on state -- NOT dependent on the entrance animation
      finishing. A previous version only set opacity via the animation's
@@ -440,22 +440,24 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   pointer-events: none;
   transform: var(--y) rotate(var(--rot, 0deg)) scale(1);
 }
-/* Deliberately offset from each other vertically (not a mirrored pair at
-   the same height) and pushed further out toward the edges -- "spread
-   out" rather than clustered dead-centre in the band. Dropped the third
-   (smallest) pair that used to hang even lower -- 4 drawings read as
-   crowded together above the checklist; 2 give the page room to breathe. */
-.progress-art--herb { left: -1%; top: 58%; --rot: -10deg; --enter-i: 1; }
-.progress-art--leaf { right: 0%; top: 76%; --rot: 12deg; --enter-i: 2; }
+/* Kept at the same height on both sides (rather than staggered) and
+   sized/spaced with a real vertical + horizontal margin against the peek
+   pair below -- a previous version let them overlap: the primary pair's
+   height at its old size could extend well past the band's bottom edge,
+   right into the zone the peek pair hangs in. This math is worked out
+   against a worst-case (short) band height, not just how it happens to
+   look on one screen. */
+.progress-art--herb { left: -2%; top: 38%; --rot: -10deg; --enter-i: 1; }
+.progress-art--leaf { right: -1%; top: 38%; --rot: 12deg; --enter-i: 2; }
 
 .progress-art--peek {
   top: auto;
-  bottom: -22%;
+  bottom: -55%;
   --y: none;
-  width: clamp(155px, 17vw, 225px);
+  width: clamp(130px, 14vw, 190px);
 }
-.progress-art--bowl.progress-art--peek { left: 5%; --rot: 6deg; --enter-i: 3; }
-.progress-art--fish.progress-art--peek { right: 4%; --rot: -6deg; --enter-i: 4; }
+.progress-art--bowl.progress-art--peek { left: 14%; --rot: 6deg; --enter-i: 3; }
+.progress-art--fish.progress-art--peek { right: 13%; --rot: -6deg; --enter-i: 4; }
 
 @media (prefers-reduced-motion: no-preference) {
   .view:not([hidden]) .progress-art {
@@ -786,7 +788,7 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   margin-right: 10px;
 }
 
-.ingredients-subheading {
+.section-subheading {
   margin: 0 0 14px;
   font-family: var(--font-accent);
   font-style: italic;

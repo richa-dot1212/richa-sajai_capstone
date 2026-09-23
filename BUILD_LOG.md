@@ -389,3 +389,12 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - **Progress screen decluttered:** dropped the third, smallest pair of illustrations (vanilla, cheese) that hung even lower than the other two -- four drawings stacked above the checklist was reading as crowded. The remaining two tiers moved down slightly for more breathing room near the header/pot area.
   - **Home hero reverted to its original 4-illustration layout:** removed macaron, moved cheese into the slot macaron used to occupy (top-right, near the header), and restored cake to its original position -- undoing several rounds of position churn that had drifted away from the layout that worked.
 - **What didn't work on the first try:** nothing broke -- confirmed macaron and the peek2 tier both fully removed from the served HTML (zero references, not just deleted from source) and pulled the served CSS directly to confirm the new kraft-container sizing rule is live before committing.
+
+## 2026-09-23 -- Directions subheading, fix progress illustration overlap (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~6-7K
+- **What shipped:**
+  - Added a "Step-by-step guide" subheading above the Directions list, matching Ingredients' "Adapted ingredient measurements" -- generalized the CSS class from `.ingredients-subheading` to `.section-subheading` since it's now shared by both tabs, rather than duplicating the same rule under two names.
+  - **Fixed a real overlap bug on the progress screen:** the primary pair (herb/leaf) and the peek pair (bowl/fish) below them could genuinely collide -- at the sizes/offsets from the last round, the primary pair's height could extend well past the header band's bottom edge, directly into the vertical zone the peek pair hangs in. Worked the fix out against a worst-case (short) band height rather than just eyeballing one screenshot: brought both pairs to the same height instead of staggered (removes one source of asymmetric risk), pulled peek further down and further inward horizontally for a real margin on both axes, and reduced both tiers' sizes somewhat (300px->250px primary, 225px->190px peek) since fitting them without collision needed some size given back.
+- **What didn't work on the first try:** none of this round broke -- but worth being honest that the overlap being fixed here was introduced across several earlier rounds of "make it bigger" requests without re-checking the geometry each time, which is exactly how it went unnoticed until reported live.

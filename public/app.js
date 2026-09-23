@@ -315,7 +315,7 @@ function renderIngredientsTab(summary) {
   return `
     <div class="ingredients-columns">
       <div class="ingredients-columns__left" data-reveal>
-        <p class="ingredients-subheading">Adapted ingredient measurements</p>
+        <p class="section-subheading">Adapted ingredient measurements</p>
         <ul class="ingredient-list">${ingredientRows}</ul>
         ${unresolved}
       </div>
@@ -340,7 +340,8 @@ function renderDirectionsTab(summary) {
   // A small drawing closes out the steps -- signals "that's the last one"
   // without another line of text.
   const stepsHtml = steps.length
-    ? `<ol class="directions-list">${steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
+    ? `<p class="section-subheading">Step-by-step guide</p>
+       <ol class="directions-list">${steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
        <img class="flourish flourish--cheese" src="images/illustrations/cheese.png" alt="" loading="lazy" />`
     : '<p class="empty">No instructions were found for this recipe.</p>';
 
