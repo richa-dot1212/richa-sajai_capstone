@@ -324,6 +324,8 @@ function renderIngredientsTab(summary) {
           <span class="total-cost__label">Total spent<span class="amount">₹${summary.totalCost}</span></span>
           <span class="of-budget">of ₹${summary.budget} budget</span>
         </div>
+
+        <img class="flourish flourish--bowl" src="images/illustrations/bowl.png" alt="" loading="lazy" />
       </div>
     </div>
   `;
@@ -331,8 +333,11 @@ function renderIngredientsTab(summary) {
 
 function renderDirectionsTab(summary) {
   const steps = summary.instructions || [];
+  // A small drawing closes out the steps -- signals "that's the last one"
+  // without another line of text.
   const stepsHtml = steps.length
-    ? `<ol class="directions-list">${steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>`
+    ? `<ol class="directions-list">${steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
+       <img class="flourish flourish--cheese" src="images/illustrations/cheese.png" alt="" loading="lazy" />`
     : '<p class="empty">No instructions were found for this recipe.</p>';
 
   if (!summary.imageUrl) {
