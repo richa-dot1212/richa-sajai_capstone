@@ -63,16 +63,6 @@
     repeating-linear-gradient(0deg, transparent, transparent 22px, rgba(247, 209, 84, 0.25) 22px, rgba(247, 209, 84, 0.25) 44px),
     repeating-linear-gradient(90deg, transparent, transparent 22px, rgba(247, 209, 84, 0.25) 22px, rgba(247, 209, 84, 0.25) 44px),
     #fdf6df;
-
-  /* Kraft-paper texture -- pure CSS, no image (replaces an earlier stock
-     PNG). A handful of soft light/dark radial blobs over a kraft-brown
-     base reads as mottled paper fibre at the sizes it's actually used at. */
-  --kraft-texture:
-    radial-gradient(circle at 18% 28%, rgba(255, 255, 255, 0.07) 0%, transparent 42%),
-    radial-gradient(circle at 72% 62%, rgba(61, 43, 31, 0.07) 0%, transparent 46%),
-    radial-gradient(circle at 42% 82%, rgba(255, 255, 255, 0.05) 0%, transparent 38%),
-    radial-gradient(circle at 85% 18%, rgba(61, 43, 31, 0.05) 0%, transparent 38%),
-    #c9a876;
 }
 
 * { box-sizing: border-box; }
@@ -782,12 +772,10 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 }
 
 .ingredients-columns__right {
-  background: var(--kraft-texture);
-  border-radius: var(--radius-card);
-  padding: clamp(14px, 2vw, 22px);
-  /* Sized and pushed right so the kraft background wraps just the note
-     and the total-cost badge, rather than spanning the whole grid
-     column with a lot of bare texture down the left side. */
+  /* No background here anymore -- the note sits directly on the page,
+     the same way the "Heads up" unresolved-items note does, relying on
+     .cart-note's own box-shadow for lift instead of a paper-texture
+     backdrop. */
   width: 84%;
   margin-left: auto;
 }

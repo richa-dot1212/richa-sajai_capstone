@@ -420,3 +420,10 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
 - **Time spent:** ~5 min
 - **Rough tokens used:** ~2K
 - **What shipped:** pulled the rosemary (herb) illustration's horizontal position on the Ingredients tab from 15% to 7%, closing the gap to the tomato illustration next to it (at 1.5%) without touching either illustration's size or any other tab/screen's positions.
+
+## 2026-09-23 -- Remove kraft-paper backdrop, match the "Heads up" note's shadow-only look (same branch)
+
+- **Time spent:** ~10 min
+- **Rough tokens used:** ~3-4K
+- **What shipped:** removed the brown kraft-paper texture behind the Instamart cart note per feedback -- it now sits directly on the plain page background, the same treatment the "Heads up" unresolved-items note already had (that one was never inside the kraft-textured container, only ever a `.cart-note` on plain background). Both notes share the same base `.cart-note` box-shadow, so no new shadow rule was needed -- removing the background was enough to make them consistent. Also removed the now-fully-unused `--kraft-texture` CSS variable rather than leaving dead code behind.
+- **What didn't work on the first try:** nothing broke -- confirmed the variable has zero remaining references before deleting it, not just removed its one usage.
