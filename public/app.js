@@ -247,6 +247,11 @@ document.querySelectorAll('.tab-btn').forEach((tabBtn) => {
 });
 
 function setActiveTab(name) {
+  // Swaps which pair of drawings frames the title. CSS does the crossfade
+  // off this one attribute.
+  const band = document.getElementById('result-band');
+  if (band) band.dataset.art = name;
+
   document.querySelectorAll('.tab-btn').forEach((b) => {
     const active = b.dataset.tab === name;
     b.classList.toggle('is-active', active);
@@ -325,7 +330,7 @@ function renderIngredientsTab(summary) {
           <span class="of-budget">of ₹${summary.budget} budget</span>
         </div>
 
-        <img class="flourish flourish--bowl" src="images/illustrations/bowl.png" alt="" loading="lazy" />
+        <img class="flourish flourish--vanilla" src="images/illustrations/vanilla.png" alt="" loading="lazy" />
       </div>
     </div>
   `;
