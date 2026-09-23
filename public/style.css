@@ -423,7 +423,7 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
    and the centred kicker/heading text. */
 .progress-art {
   position: absolute;
-  width: clamp(180px, 20vw, 250px);
+  width: clamp(210px, 23vw, 290px);
   height: auto;
   /* Resting, always-on state -- NOT dependent on the entrance animation
      finishing. A previous version only set opacity via the animation's
@@ -452,9 +452,13 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 
 .progress-art--peek {
   top: auto;
-  bottom: -55%;
+  /* Pushed a little further down than the last round, to give the
+     bigger primary pair above the same real clearance it had before --
+     otherwise growing both without adjusting the gap reintroduces the
+     overlap this positioning was set up to avoid. */
+  bottom: -62%;
   --y: none;
-  width: clamp(130px, 14vw, 190px);
+  width: clamp(155px, 17vw, 220px);
 }
 .progress-art--bowl.progress-art--peek { left: 14%; --rot: 6deg; --enter-i: 3; }
 .progress-art--fish.progress-art--peek { right: 13%; --rot: -6deg; --enter-i: 4; }
