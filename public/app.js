@@ -315,6 +315,7 @@ function renderIngredientsTab(summary) {
   return `
     <div class="ingredients-columns">
       <div class="ingredients-columns__left" data-reveal>
+        <p class="ingredients-subheading">Adapted ingredient measurements</p>
         <ul class="ingredient-list">${ingredientRows}</ul>
         ${unresolved}
       </div>

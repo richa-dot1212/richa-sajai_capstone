@@ -63,6 +63,16 @@
     repeating-linear-gradient(0deg, transparent, transparent 22px, rgba(247, 209, 84, 0.25) 22px, rgba(247, 209, 84, 0.25) 44px),
     repeating-linear-gradient(90deg, transparent, transparent 22px, rgba(247, 209, 84, 0.25) 22px, rgba(247, 209, 84, 0.25) 44px),
     #fdf6df;
+
+  /* Kraft-paper texture -- pure CSS, no image (replaces an earlier stock
+     PNG). A handful of soft light/dark radial blobs over a kraft-brown
+     base reads as mottled paper fibre at the sizes it's actually used at. */
+  --kraft-texture:
+    radial-gradient(circle at 18% 28%, rgba(255, 255, 255, 0.07) 0%, transparent 42%),
+    radial-gradient(circle at 72% 62%, rgba(61, 43, 31, 0.07) 0%, transparent 46%),
+    radial-gradient(circle at 42% 82%, rgba(255, 255, 255, 0.05) 0%, transparent 38%),
+    radial-gradient(circle at 85% 18%, rgba(61, 43, 31, 0.05) 0%, transparent 38%),
+    #c9a876;
 }
 
 * { box-sizing: border-box; }
@@ -147,6 +157,8 @@ body {
 .hero-illustration--macaron { --enter-i: 2; }
 .hero-illustration--pancake { --enter-i: 3; }
 .hero-illustration--cake { --enter-i: 4; }
+.hero-illustration--vanilla { --enter-i: 5; }
+.hero-illustration--cheese { --enter-i: 6; }
 .result-header-band__row { --enter-i: 0; }
 .recipe-title { --enter-i: 1; }
 .recipe-subtitle { --enter-i: 2; }
@@ -225,10 +237,12 @@ body {
   opacity: 0.9;
   transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) ease;
 }
-.hero-illustration--cookie { left: -1%; top: 18%; }
-.hero-illustration--pancake { left: 4%; top: 72%; }
-.hero-illustration--macaron { right: 2%; top: 16%; }
-.hero-illustration--cake { right: -1%; top: 70%; }
+.hero-illustration--cookie { left: -1%; top: 12%; }
+.hero-illustration--pancake { left: 5%; top: 48%; }
+.hero-illustration--vanilla { left: -1%; top: 82%; }
+.hero-illustration--macaron { right: 1%; top: 11%; }
+.hero-illustration--cake { right: 5%; top: 48%; }
+.hero-illustration--cheese { right: -1%; top: 82%; }
 /* Nudging a drawing makes it feel like a physical sticker on the page,
    which is the whole scrapbook conceit. */
 .hero-illustration:hover {
@@ -252,7 +266,7 @@ body {
   margin: 0 auto 28px;
   max-width: 48ch;
   color: var(--ink-soft);
-  font-size: 18px;
+  font-size: 19px;
   font-family: var(--font-accent);
   font-style: italic;
 }
@@ -407,7 +421,7 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 .progress-art {
   position: absolute;
   top: 58%;
-  width: clamp(140px, 15vw, 210px);
+  width: clamp(165px, 18vw, 240px);
   height: auto;
   /* Resting, always-on state -- NOT dependent on the entrance animation
      finishing. A previous version only set opacity via the animation's
@@ -431,7 +445,7 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   top: auto;
   bottom: -16%;
   --y: none;
-  width: clamp(95px, 10vw, 140px);
+  width: clamp(115px, 12vw, 165px);
 }
 .progress-art--bowl.progress-art--peek { left: 11%; --rot: 6deg; --enter-i: 3; }
 .progress-art--fish.progress-art--peek { right: 10%; --rot: -6deg; --enter-i: 4; }
@@ -440,7 +454,7 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   top: auto;
   bottom: -34%;
   --y: none;
-  width: clamp(75px, 8vw, 115px);
+  width: clamp(90px, 9.5vw, 135px);
   opacity: 0.7;
 }
 .progress-art--vanilla.progress-art--peek2 { left: 1%; --rot: -7deg; --enter-i: 5; }
@@ -611,6 +625,9 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 }
 .band-illustration--left { left: 1.5%; --rot: -8deg; }
 .band-illustration--right { right: 1.5%; --rot: 7deg; }
+/* Directions' pair sits further out toward the edges than Ingredients'. */
+.band-illustration--left[data-art-for='directions'] { left: -1.5%; }
+.band-illustration--right[data-art-for='directions'] { right: -1%; }
 
 /* A second, smaller drawing per side, hanging lower and peeking past the
    band's bottom edge into the body -- the extra variety the ingredients
@@ -624,6 +641,9 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 }
 .band-illustration--left-b { left: 7%; --rot: 11deg; }
 .band-illustration--right-b { right: 6%; --rot: -9deg; }
+/* The olive basket (bowl) reads as small at the shared peek size --
+   sized up on its own rather than growing the whole peek tier. */
+.band-illustration--right-b[data-art-for='directions'] { width: clamp(125px, 13vw, 190px); }
 
 .result-header-band[data-art='ingredients'] .band-illustration[data-art-for='ingredients'],
 .result-header-band[data-art='directions'] .band-illustration[data-art-for='directions'] {
@@ -733,20 +753,26 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 }
 
 .ingredients-columns__right {
-  background-image: url('images/torn-paper-bg.png');
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 112% 112%;
+  background: var(--kraft-texture);
+  border-radius: var(--radius-card);
   padding: clamp(24px, 3.5vw, 36px);
 }
 
 .cart-note__logo {
-  width: 50px;
-  height: 50px;
-  border-radius: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
   object-fit: cover;
   vertical-align: middle;
-  margin-right: 12px;
+  margin-right: 9px;
+}
+
+.ingredients-subheading {
+  margin: 0 0 12px;
+  font-family: var(--font-accent);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink-soft);
 }
 
 /* Ingredients list */
@@ -770,17 +796,17 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 .cart-note {
   position: relative;
   background: var(--paper-note);
-  padding: 40px clamp(28px, 5vw, 48px) 36px 56px;
-  margin: 8px 0 24px;
+  padding: 26px clamp(20px, 4vw, 32px) 24px 40px;
+  margin: 8px 0 18px;
   border-radius: 2px;
   box-shadow: 0 10px 24px -14px rgba(61, 43, 31, 0.35);
   background-image: repeating-linear-gradient(
     to bottom,
     transparent,
-    transparent 30px,
-    var(--paper-note-line) 31px
+    transparent 28px,
+    var(--paper-note-line) 29px
   );
-  background-position: 0 54px;
+  background-position: 0 46px;
 }
 .cart-note::before {
   /* torn/perforated left edge */
@@ -793,12 +819,12 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   clip-path: polygon(0% 2%, 100% 0%, 100% 100%, 0% 98%, 4% 92%, 0% 84%, 5% 78%, 0% 70%, 4% 63%, 0% 55%, 5% 48%, 0% 40%, 4% 33%, 0% 25%, 5% 18%, 0% 10%);
 }
 .cart-note h3 {
-  margin: 0 0 6px; font-family: var(--font-title); font-size: 2.1rem; color: var(--accent-strong); font-weight: 700;
+  margin: 0 0 4px; font-family: var(--font-accent); font-style: italic; font-size: 1.55rem; color: var(--accent-strong); font-weight: 700;
 }
-.cart-note__sub { margin: 0 0 20px; font-size: 14px; color: var(--ink-soft); font-style: italic; }
+.cart-note__sub { margin: 0 0 14px; font-size: 13px; color: var(--ink-soft); font-style: italic; }
 .cart-note ul { list-style: none; margin: 0; padding: 0; }
 .cart-note li {
-  display: flex; align-items: center; gap: 12px; padding: 9px 0; font-size: 16px;
+  display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 14.5px;
 }
 .cart-note li .icon { color: var(--accent-strong); flex-shrink: 0; }
 .cart-note li .added-badge {
@@ -816,10 +842,10 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 .total-cost {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
   background: var(--accent-tint); color: var(--accent-strong);
-  border-radius: var(--radius-control); padding: 18px 22px; font-size: 14px; font-weight: 700;
+  border-radius: var(--radius-control); padding: 14px 18px; font-size: 13px; font-weight: 700;
 }
 .total-cost__label { display: flex; align-items: baseline; gap: 10px; }
-.total-cost .amount { font-family: var(--font-title); font-size: 2.1rem; font-weight: 700; }
+.total-cost .amount { font-family: var(--font-title); font-size: 1.7rem; font-weight: 700; }
 .total-cost .of-budget { color: var(--ink-soft); font-weight: 600; white-space: nowrap; }
 
 /* Directions: steps on the left, a compact scrapbook-style photo on the

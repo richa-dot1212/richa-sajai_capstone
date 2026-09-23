@@ -340,3 +340,16 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - **2 more illustrations on the progress screen** (vanilla, cheese -- reused from the result-tab flourishes, since progress and result-tab-closers are never on screen together), hanging even lower off the header band than the existing peek pair, smaller and more transparent (0.7 opacity) so they read as a third, subtler layer rather than competing with the main pair.
   - **Home screen form, softer/rounder per a reference screenshot (Julienne):** established one consistent rounding scale used everywhere -- buttons always full-pill (`--radius-pill`), cards get the roundest corners (`--radius-card` 20 -> 32px), inputs/controls a step less (`--radius-control` 10 -> 16px). "Adapt My Recipe" and the secondary buttons (Download recipe, Back to start) are now pill-shaped like "Connect to Swiggy" already was, instead of the softer-rectangle shape they had before -- matching the reference's fully-rounded CTAs. Lightened the card's shadow (lower opacity, wider spread) and softened its border color so it reads as a gentle lift off the page rather than a heavy boxed-in rectangle.
 - **What didn't work on the first try:** the disappearing-illustration bug above was shipped in the previous round and only caught now while implementing this one -- a good example of why "verify live" matters even for animation-only changes that don't touch layout.
+
+## 2026-09-23 -- Positioning/sizing pass, ingredients subheading, kraft CSS texture, bigger progress art (same branch)
+
+- **Time spent:** ~35 min
+- **Rough tokens used:** ~10-12K
+- **What shipped:**
+  - **Directions tab:** the cutlery pair moved further left, the bottle pair further right (tab-specific position overrides, so Ingredients' tomato/lemon positions are untouched), and the bowl illustration ("olive in a basket") sized up specifically for its directions-tab appearance rather than growing the whole shared "peek" tier.
+  - **Ingredients tab:** added a small italic subheading, "Adapted ingredient measurements," above the ingredient list -- it was reading as unlabelled.
+  - **Cart note:** heading font switched from Swung Note to Anaktoria (italic), and the whole note sized back down (padding, heading/list/logo/total-cost all reduced) after the last couple of rounds had grown it -- it had overshot into feeling oversized.
+  - **Removed the stock kraft-paper PNG** behind the note's column, replaced with a pure-CSS texture (`--kraft-texture`): a handful of soft light/dark radial blobs over a kraft-brown base, no image request needed, same approach already used for the yellow gingham band.
+  - **Home hero:** added 2 more illustrations (vanilla, cheese -- reused from elsewhere, same size as the existing 4) alongside a home-subtitle font-size nudge from 18px to 19px ("just slightly" bigger).
+  - **Progress-screen art:** all 3 size tiers increased again (165-240px / 115-165px / 90-135px) per feedback that the previous round's bump still read as too small.
+- **What didn't work on the first try:** none of this round broke -- verified CSS brace balance, that every referenced class has a matching rule, and that every referenced image file exists before committing.
