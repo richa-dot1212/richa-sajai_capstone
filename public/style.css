@@ -389,22 +389,36 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   min-height: 100dvh;
 }
 
-/* Drawings flank the pot while the agent works. Anchored to the full-height
-   screen rather than the short header band, so there is room for them at a
-   decent size, and pinned to the outer edges well clear of the centred
-   480px column of pot + checklist. */
+/* Drawings live inside the header band, not the full screen -- as
+   siblings of the band they'd have been painted over by its opaque
+   background wherever they overlapped. One pair sits centred in the
+   band; a second, smaller pair hangs from the band's bottom edge and
+   peeks a little past it into the body -- the "a little lower is okay"
+   request -- which needs the band's z-index above .progress-body so the
+   overflow shows instead of being covered by the next section. Pinned to
+   the outer edges, well clear of the centred 480px pot/checklist column
+   and the centred kicker/heading text. */
 .progress-art {
   position: absolute;
-  width: clamp(130px, 14vw, 200px);
+  top: 58%;
+  width: clamp(110px, 12vw, 165px);
   height: auto;
-  opacity: 0.8;
+  opacity: 0;
+  --y: translateY(-50%);
   pointer-events: none;
-  transform: rotate(var(--rot, 0deg));
+  transform: var(--y) rotate(var(--rot, 0deg)) scale(0.8);
 }
-.progress-art--herb { --rot: -10deg; --enter-i: 1; left: 4%; top: 30%; }
-.progress-art--bowl { --rot: 6deg; --enter-i: 3; left: 9%; top: 64%; }
-.progress-art--leaf { --rot: 12deg; --enter-i: 2; right: 6%; top: 27%; }
-.progress-art--fish { --rot: -5deg; --enter-i: 4; right: 3%; top: 66%; }
+.progress-art--herb { left: 2%; --rot: -10deg; --enter-i: 1; }
+.progress-art--leaf { right: 3%; --rot: 12deg; --enter-i: 2; }
+
+.progress-art--peek {
+  top: auto;
+  bottom: -16%;
+  --y: none;
+  width: clamp(85px, 9vw, 125px);
+}
+.progress-art--bowl.progress-art--peek { left: 11%; --rot: 6deg; --enter-i: 3; }
+.progress-art--fish.progress-art--peek { right: 10%; --rot: -6deg; --enter-i: 4; }
 
 @media (prefers-reduced-motion: no-preference) {
   .view:not([hidden]) .progress-art {
@@ -413,8 +427,8 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   }
 }
 @keyframes progress-art-in {
-  from { opacity: 0; transform: rotate(var(--rot, 0deg)) scale(0.8); }
-  to { opacity: 0.8; transform: rotate(var(--rot, 0deg)) scale(1); }
+  from { opacity: 0; transform: var(--y) rotate(var(--rot, 0deg)) scale(0.8); }
+  to { opacity: 0.8; transform: var(--y) rotate(var(--rot, 0deg)) scale(1); }
 }
 
 @media (max-width: 1100px) {
@@ -422,6 +436,8 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 }
 
 .progress-header-band {
+  position: relative;
+  z-index: 2; /* above .progress-body, so the peeking pair shows past the band's edge instead of being painted over */
   width: 100%;
   text-align: center;
   padding: clamp(32px, 6vw, 56px) 20px clamp(24px, 4vw, 36px);
@@ -435,6 +451,8 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 }
 
 .progress-body {
+  position: relative;
+  z-index: 1;
   flex: 1;
   width: 100%;
   max-width: 480px;
@@ -532,10 +550,10 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 
 .result-header-band {
   position: relative;
+  z-index: 2; /* above .view-result__body, so the peeking pair shows past the band's edge instead of being painted over */
   width: 100%;
   padding: clamp(24px, 4vw, 36px) clamp(20px, 4vw, 40px) clamp(28px, 4vw, 36px);
   text-align: center;
-  overflow: hidden;
 }
 .result-header-band__inner {
   position: relative;
@@ -559,19 +577,33 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   width: clamp(115px, 12vw, 175px);
   height: auto;
   opacity: 0;
-  /* Resting tilt lives in --rot so the swap can scale each drawing
-     without flattening its rotation. */
-  transform: translateY(-50%) rotate(var(--rot, 0deg)) scale(0.78);
+  /* Resting tilt lives in --rot, vertical anchoring in --y, so the swap
+     can scale each drawing without flattening its rotation or position. */
+  --y: translateY(-50%);
+  transform: var(--y) rotate(var(--rot, 0deg)) scale(0.78);
   pointer-events: none;
   transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
 }
 .band-illustration--left { left: 1.5%; --rot: -8deg; }
 .band-illustration--right { right: 1.5%; --rot: 7deg; }
 
+/* A second, smaller drawing per side, hanging lower and peeking past the
+   band's bottom edge into the body -- the extra variety the ingredients
+   and directions tabs asked for, sized down so it reads as an accent
+   rather than competing with the primary pair. */
+.band-illustration--peek {
+  top: auto;
+  bottom: -14%;
+  --y: none;
+  width: clamp(80px, 8.5vw, 125px);
+}
+.band-illustration--left-b { left: 7%; --rot: 11deg; }
+.band-illustration--right-b { right: 6%; --rot: -9deg; }
+
 .result-header-band[data-art='ingredients'] .band-illustration[data-art-for='ingredients'],
 .result-header-band[data-art='directions'] .band-illustration[data-art-for='directions'] {
   opacity: 0.85;
-  transform: translateY(-50%) rotate(var(--rot, 0deg)) scale(1);
+  transform: var(--y) rotate(var(--rot, 0deg)) scale(1);
 }
 
 /* The incoming pair animates in; the outgoing pair falls back to the
@@ -582,11 +614,13 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   .view:not([hidden]) .result-header-band[data-art='directions'] .band-illustration[data-art-for='directions'] {
     animation: band-sticker-in 0.5s var(--ease-out) backwards;
   }
-  .band-illustration--right { animation-delay: 90ms; }
+  .band-illustration--right,
+  .band-illustration--left-b { animation-delay: 90ms; }
+  .band-illustration--right-b { animation-delay: 150ms; }
 }
 @keyframes band-sticker-in {
-  from { opacity: 0; transform: translateY(-50%) rotate(var(--rot, 0deg)) scale(0.78); }
-  to { opacity: 0.85; transform: translateY(-50%) rotate(var(--rot, 0deg)) scale(1); }
+  from { opacity: 0; transform: var(--y) rotate(var(--rot, 0deg)) scale(0.78); }
+  to { opacity: 0.85; transform: var(--y) rotate(var(--rot, 0deg)) scale(1); }
 }
 
 @media (max-width: 1100px) {
@@ -594,6 +628,8 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 }
 
 .view-result__body {
+  position: relative;
+  z-index: 1;
   max-width: 1280px;
   margin: 0 auto;
   padding: clamp(24px, 4vw, 56px);
