@@ -643,6 +643,8 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 /* Directions' pair sits further out toward the edges than Ingredients'. */
 .band-illustration--left[data-art-for='directions'] { left: -1.5%; }
 .band-illustration--right[data-art-for='directions'] { right: -1%; }
+/* Tomato only -- everything else in this pair stays at the shared size. */
+.band-illustration--left[data-art-for='ingredients'] { width: clamp(105px, 11vw, 155px); }
 
 /* A second, smaller drawing per side, hanging lower and peeking past the
    band's bottom edge into the body -- the extra variety the ingredients
@@ -717,7 +719,14 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 
 .recipe-title {
   font-family: var(--font-title); font-weight: 700; color: var(--accent-strong);
-  font-size: clamp(2.6rem, 6vw, 3.6rem); line-height: 1; margin: 12px 0 0;
+  font-size: clamp(2.6rem, 6vw, 3.6rem); line-height: 1.1; margin: 12px auto 0;
+  max-width: 900px;
+}
+/* Applied by app.js when a title runs past 4 words -- a long title at
+   the short-title font size would dominate the whole header instead of
+   sitting inside it. */
+.recipe-title--long {
+  font-size: clamp(1.9rem, 4.2vw, 2.7rem);
 }
 
 .recipe-subtitle {

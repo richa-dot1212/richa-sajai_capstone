@@ -405,3 +405,12 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
 - **Rough tokens used:** ~3-4K
 - **What shipped:** user confirmed the progress-screen illustration *placement* from the overlap fix is right -- just sized them up (primary 250 -> 290px, peek 190 -> 220px). Left every position/rotation value untouched and only pushed the peek pair's vertical offset out a bit further (-55% -> -62%) to preserve the same worked-out clearance margin against the now-bigger primary pair, rather than let the growth quietly reintroduce the overlap that was just fixed.
 - **What didn't work on the first try:** nothing broke -- this was a size-only change layered onto already-verified positioning logic.
+
+## 2026-09-23 -- Shrink tomato only, wrap long recipe titles every 4 words (same branch)
+
+- **Time spent:** ~15 min
+- **Rough tokens used:** ~4-5K
+- **What shipped:**
+  - Sized down only the tomato illustration on the ingredients tab (a scoped `[data-art-for='ingredients']` override on its specific class), leaving lemon and every other illustration on both tabs untouched.
+  - Long recipe titles now break onto a new line every 4 words instead of relying on the browser's default wrap point (which would only break at the container edge, potentially after many more words). `setRecipeTitle()` in `app.js` chunks the title into 4-word groups joined by `<br>` (each word still escaped, since the title is external/scraped content), and switches to a smaller font-size scale (`.recipe-title--long`) once a title actually needs more than one line, so a long title doesn't dominate the header at the same size a short one uses.
+- **What didn't work on the first try:** nothing broke -- tested the word-chunking logic directly against a short title, an exactly-4-word title, a long multi-line title, and an empty string before wiring it in, rather than assuming the loop math was right.

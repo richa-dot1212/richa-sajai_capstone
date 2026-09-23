@@ -18,6 +18,19 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// A long recipe title at full size would dominate the whole header
+// instead of sitting inside it. Breaks it onto a new line every 4 words
+// and, once it actually needs more than one line, switches to a smaller
+// font scale so the header stays proportioned to its content.
+function setRecipeTitle(title) {
+  const el = document.getElementById('recipe-title');
+  const words = title.trim().split(/\s+/);
+  const lines = [];
+  for (let i = 0; i < words.length; i += 4) lines.push(words.slice(i, i + 4).join(' '));
+  el.innerHTML = lines.map((line) => escapeHtml(line)).join('<br>');
+  el.classList.toggle('recipe-title--long', words.length > 4);
+}
+
 // ---------------------------------------------------------------
 // Motion helpers
 // ---------------------------------------------------------------
@@ -226,7 +239,7 @@ form.addEventListener('submit', async (e) => {
       return;
     }
     renderStages(STAGES.map((s) => s.key), true);
-    document.getElementById('recipe-title').textContent = summary.title || 'Your recipe';
+    setRecipeTitle(summary.title || 'Your recipe');
     document.getElementById('download-link').href = `/output/${savedPath}`;
     document.getElementById('summary').innerHTML = renderTabs(summary);
     setActiveTab('ingredients');
