@@ -663,7 +663,7 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
    (bowl) reads as small at the shared peek size and needed pulling
    inward too -- sized up on its own rather than growing the whole
    peek tier for either. */
-.band-illustration--left-b[data-art-for='ingredients'] { left: 15%; }
+.band-illustration--left-b[data-art-for='ingredients'] { left: 7%; }
 .band-illustration--left-b[data-art-for='directions'] { left: 14%; width: clamp(150px, 16vw, 215px); }
 .band-illustration--right-b[data-art-for='directions'] { right: 13%; width: clamp(155px, 16vw, 220px); }
 

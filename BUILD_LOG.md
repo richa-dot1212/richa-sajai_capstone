@@ -414,3 +414,9 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - Sized down only the tomato illustration on the ingredients tab (a scoped `[data-art-for='ingredients']` override on its specific class), leaving lemon and every other illustration on both tabs untouched.
   - Long recipe titles now break onto a new line every 4 words instead of relying on the browser's default wrap point (which would only break at the container edge, potentially after many more words). `setRecipeTitle()` in `app.js` chunks the title into 4-word groups joined by `<br>` (each word still escaped, since the title is external/scraped content), and switches to a smaller font-size scale (`.recipe-title--long`) once a title actually needs more than one line, so a long title doesn't dominate the header at the same size a short one uses.
 - **What didn't work on the first try:** nothing broke -- tested the word-chunking logic directly against a short title, an exactly-4-word title, a long multi-line title, and an empty string before wiring it in, rather than assuming the loop math was right.
+
+## 2026-09-23 -- Move rosemary closer to tomato on ingredients tab (same branch)
+
+- **Time spent:** ~5 min
+- **Rough tokens used:** ~2K
+- **What shipped:** pulled the rosemary (herb) illustration's horizontal position on the Ingredients tab from 15% to 7%, closing the gap to the tomato illustration next to it (at 1.5%) without touching either illustration's size or any other tab/screen's positions.
