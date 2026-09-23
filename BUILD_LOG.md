@@ -427,3 +427,10 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
 - **Rough tokens used:** ~3-4K
 - **What shipped:** removed the brown kraft-paper texture behind the Instamart cart note per feedback -- it now sits directly on the plain page background, the same treatment the "Heads up" unresolved-items note already had (that one was never inside the kraft-textured container, only ever a `.cart-note` on plain background). Both notes share the same base `.cart-note` box-shadow, so no new shadow rule was needed -- removing the background was enough to make them consistent. Also removed the now-fully-unused `--kraft-texture` CSS variable rather than leaving dead code behind.
 - **What didn't work on the first try:** nothing broke -- confirmed the variable has zero remaining references before deleting it, not just removed its one usage.
+
+## 2026-09-23 -- Fold total-spent into the note, drop the separate blue box (same branch)
+
+- **Time spent:** ~10 min
+- **Rough tokens used:** ~3-4K
+- **What shipped:** moved "Total spent ₹X of ₹Y budget" from its own blue-tinted `.total-cost` callout into the bottom of the cart note itself, separated only by a dashed line (echoing torn notebook paper rather than a boxed UI element). Removed the now-unused `.total-cost` CSS rules.
+- **What didn't work on the first try:** nothing broke -- confirmed no remaining references to the old class in either the markup or CSS before removing its rules.

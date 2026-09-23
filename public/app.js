@@ -337,11 +337,7 @@ function renderIngredientsTab(summary) {
           <h3><img class="cart-note__logo" src="images/swiggy-logo.webp" alt="" onerror="this.remove()" />From the Instamart cart</h3>
           <p class="cart-note__sub">Already added, ready for checkout in the app</p>
           ${cartItems.length ? `<ul>${cartRows}</ul>` : cartRows}
-        </div>
-
-        <div class="total-cost">
-          <span class="total-cost__label">Total spent<span class="amount">₹${summary.totalCost}</span></span>
-          <span class="of-budget">of ₹${summary.budget} budget</span>
+          <p class="cart-note__total">Total spent <span class="amount">₹${summary.totalCost}</span> <span class="of-budget">of ₹${summary.budget} budget</span></p>
         </div>
       </div>
     </div>
