@@ -379,3 +379,13 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - **Home hero:** moved the cake illustration further down (48% -> 58%) -- at the illustrations' current size the gap to macaron above it was smaller than the images themselves, so they were genuinely overlapping, not just visually close.
   - **Ingredients cart note:** given a `max-width` and pushed right within its column (`margin-left: auto`) per feedback that it should sit further right and take up less width.
 - **What didn't work on the first try:** nothing broke -- verified CSS brace balance and confirmed the new `overflow-x: hidden` rule is actually present in the served stylesheet (not just the source file) before committing.
+
+## 2026-09-23 -- Kraft paper matches note width, decluttered progress art, restore original home layout (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~6-7K
+- **What shipped:**
+  - **Kraft-textured background now matches the note's footprint:** it was spanning the full grid column while the note itself sat narrower and pushed right (from an earlier round), leaving a strip of bare texture down the left with no note or price badge over it. Moved the sizing/positioning (`width: 84%; margin-left: auto`) onto the container itself instead of the note, so the kraft paper, the note, and the total-cost price badge all now share exactly the same width and alignment -- one shape instead of a paper cut-out floating inside a bigger one.
+  - **Progress screen decluttered:** dropped the third, smallest pair of illustrations (vanilla, cheese) that hung even lower than the other two -- four drawings stacked above the checklist was reading as crowded. The remaining two tiers moved down slightly for more breathing room near the header/pot area.
+  - **Home hero reverted to its original 4-illustration layout:** removed macaron, moved cheese into the slot macaron used to occupy (top-right, near the header), and restored cake to its original position -- undoing several rounds of position churn that had drifted away from the layout that worked.
+- **What didn't work on the first try:** nothing broke -- confirmed macaron and the peek2 tier both fully removed from the served HTML (zero references, not just deleted from source) and pulled the served CSS directly to confirm the new kraft-container sizing rule is live before committing.

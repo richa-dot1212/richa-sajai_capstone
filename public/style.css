@@ -159,10 +159,9 @@ body {
 .subtitle { --enter-i: 2; }
 .swiggy-step { --enter-i: 3; }
 .hero-illustration--cookie { --enter-i: 1; }
-.hero-illustration--macaron { --enter-i: 2; }
+.hero-illustration--cheese { --enter-i: 2; }
 .hero-illustration--pancake { --enter-i: 3; }
 .hero-illustration--cake { --enter-i: 4; }
-.hero-illustration--cheese { --enter-i: 5; }
 .result-header-band__row { --enter-i: 0; }
 .recipe-title { --enter-i: 1; }
 .recipe-subtitle { --enter-i: 2; }
@@ -241,11 +240,12 @@ body {
   opacity: 0.9;
   transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) ease;
 }
+/* Original 4-illustration layout, restored -- cheese now sits in the
+   slot macaron used to occupy. */
 .hero-illustration--cookie { left: -1%; top: 18%; }
 .hero-illustration--pancake { left: 4%; top: 72%; }
-.hero-illustration--macaron { right: 1%; top: 22%; }
-.hero-illustration--cake { right: 9%; top: 58%; }
-.hero-illustration--cheese { right: -1%; top: 82%; }
+.hero-illustration--cheese { right: 2%; top: 16%; }
+.hero-illustration--cake { right: -1%; top: 70%; }
 /* Nudging a drawing makes it feel like a physical sticker on the page,
    which is the whole scrapbook conceit. */
 .hero-illustration:hover {
@@ -442,28 +442,20 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 }
 /* Deliberately offset from each other vertically (not a mirrored pair at
    the same height) and pushed further out toward the edges -- "spread
-   out" rather than clustered dead-centre in the band. */
-.progress-art--herb { left: -1%; top: 50%; --rot: -10deg; --enter-i: 1; }
-.progress-art--leaf { right: 0%; top: 68%; --rot: 12deg; --enter-i: 2; }
+   out" rather than clustered dead-centre in the band. Dropped the third
+   (smallest) pair that used to hang even lower -- 4 drawings read as
+   crowded together above the checklist; 2 give the page room to breathe. */
+.progress-art--herb { left: -1%; top: 58%; --rot: -10deg; --enter-i: 1; }
+.progress-art--leaf { right: 0%; top: 76%; --rot: 12deg; --enter-i: 2; }
 
 .progress-art--peek {
   top: auto;
-  bottom: -18%;
+  bottom: -22%;
   --y: none;
   width: clamp(155px, 17vw, 225px);
 }
 .progress-art--bowl.progress-art--peek { left: 5%; --rot: 6deg; --enter-i: 3; }
 .progress-art--fish.progress-art--peek { right: 4%; --rot: -6deg; --enter-i: 4; }
-
-.progress-art--peek2 {
-  top: auto;
-  bottom: -36%;
-  --y: none;
-  width: clamp(130px, 13.5vw, 185px);
-  opacity: 0.7;
-}
-.progress-art--vanilla.progress-art--peek2 { left: -2%; --rot: -7deg; --enter-i: 5; }
-.progress-art--cheese.progress-art--peek2 { right: -1%; --rot: 8deg; --enter-i: 6; }
 
 @media (prefers-reduced-motion: no-preference) {
   .view:not([hidden]) .progress-art {
@@ -778,6 +770,11 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   background: var(--kraft-texture);
   border-radius: var(--radius-card);
   padding: clamp(14px, 2vw, 22px);
+  /* Sized and pushed right so the kraft background wraps just the note
+     and the total-cost badge, rather than spanning the whole grid
+     column with a lot of bare texture down the left side. */
+  width: 84%;
+  margin-left: auto;
 }
 
 .cart-note__logo {
@@ -820,8 +817,7 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   position: relative;
   background: var(--paper-note);
   padding: 18px clamp(14px, 3vw, 24px) 16px 30px;
-  margin: 6px 0 14px auto;
-  max-width: 84%;
+  margin: 6px 0 14px;
   border-radius: 2px;
   box-shadow: 0 10px 24px -14px rgba(61, 43, 31, 0.35);
   background-image: repeating-linear-gradient(
