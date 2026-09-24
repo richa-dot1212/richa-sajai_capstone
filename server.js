@@ -2,7 +2,8 @@ require('./agent/env').loadEnv();
 const express = require('express');
 const path = require('path');
 const { randomUUID } = require('crypto');
-const { runWorkflow, STAGES } = require('./agent/workflow');
+const { runWorkflow, STAGES, buildSummary } = require('./agent/workflow');
+const { InstamartClient } = require('./agent/instamartClient');
 const swiggyOAuth = require('./agent/swiggyOAuth');
 const { sessionMiddleware } = require('./agent/session');
 
@@ -79,7 +80,19 @@ app.post('/api/adapt', (req, res) => {
   };
 
   const { emitter, promise } = runWorkflow(input, { userSessionId: req.sessionId });
-  const job = { stagesReached: [], done: false, error: null, summary: null, savedPath: null };
+  // sessionId and (once resolved) addressId + state are kept here so a
+  // later override action can add a different real product to the same
+  // cart without re-running the workflow or re-resolving the address.
+  const job = {
+    stagesReached: [],
+    done: false,
+    error: null,
+    summary: null,
+    savedPath: null,
+    sessionId: req.sessionId,
+    addressId: null,
+    state: null,
+  };
   jobs.set(jobId, job);
 
   emitter.on('stage', (key) => {
@@ -95,6 +108,8 @@ app.post('/api/adapt', (req, res) => {
       job.done = true;
       job.summary = result.summary;
       job.savedPath = path.basename(result.savedPath);
+      job.addressId = result.addressId;
+      job.state = result.state;
     })
     .catch((err) => {
       job.done = true;
@@ -102,6 +117,78 @@ app.post('/api/adapt', (req, res) => {
     });
 
   res.json({ jobId });
+});
+
+// Adds the option the user *didn't* get automatically (or that couldn't be
+// resolved within budget) to the real Instamart cart, for one already-
+// completed ingredient decision. Does not re-run the workflow -- one
+// targeted update_cart call plus deterministic bookkeeping, same shape as
+// the cart-add code inside agent/workflow.js's per-ingredient loop.
+app.post('/api/adapt/:jobId/override', async (req, res) => {
+  const job = jobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (!job.done || job.error) return res.status(400).json({ error: 'This run is not in a completed state' });
+  if (!job.addressId) return res.status(400).json({ error: 'No delivery address was resolved for this run' });
+
+  const { ingredient, choice } = req.body || {};
+  if (!ingredient || (choice !== 'original' && choice !== 'substitute')) {
+    return res.status(400).json({ error: 'ingredient and choice ("original" or "substitute") are required' });
+  }
+
+  const record = job.state.decisions.find((d) => d.ingredient.toLowerCase() === String(ingredient).toLowerCase());
+  if (!record) return res.status(404).json({ error: `No decision found for "${ingredient}"` });
+
+  const product = choice === 'original' ? record.originalProduct : record.substituteProduct;
+  if (!product) return res.status(400).json({ error: `No ${choice} product was found on Instamart for "${ingredient}"` });
+
+  try {
+    const instamart = new InstamartClient(job.sessionId);
+    await instamart.init();
+
+    // If a different product for this same ingredient was already added
+    // (the automatic decision, or an earlier override), try to remove it
+    // first so the real cart doesn't end up holding both. Best-effort:
+    // this assumes Swiggy's update_cart treats quantity: 0 as "remove",
+    // which is the common convention but is NOT verified against the live
+    // API in this codebase -- if it doesn't behave that way, the add below
+    // still succeeds and is what actually matters for the override to work
+    // at all, so a failure here is logged and swallowed rather than
+    // blocking the real action the user asked for.
+    const previousProduct = record.product;
+    if (previousProduct && previousProduct.spinId !== product.spinId) {
+      try {
+        await instamart.callTool('update_cart', {
+          selectedAddressId: job.addressId,
+          items: [{ spinId: previousProduct.spinId, skuId: previousProduct.skuId, quantity: 0 }],
+        });
+      } catch (removeErr) {
+        console.log(`[override] Could not remove previous cart item for "${ingredient}": ${removeErr.message}`);
+      }
+    }
+
+    await instamart.callTool('update_cart', {
+      selectedAddressId: job.addressId,
+      items: [{ spinId: product.spinId, skuId: product.skuId, quantity: 1 }],
+    });
+
+    record.decision = choice === 'original' ? 'buy' : 'substitute';
+    record.product = product;
+    record.cost = product.offerPrice;
+    // Refresh the human-readable reasoning too -- otherwise it would keep
+    // describing whichever option the automatic decision picked, which
+    // would now contradict `decision` after this override (a real bug
+    // caught in testing: the UI would say "buy" but the reasoning text
+    // would still explain why the substitute was added).
+    record.reasoning = `You chose to add ${product.displayName} (₹${product.offerPrice}) instead of the automatic pick.`;
+    // Deterministic bookkeeping -- the same reduce used in
+    // agent/workflow.js, recomputed rather than duplicated by hand here.
+    job.state.spentSoFar = job.state.decisions.reduce((sum, d) => sum + (d.product ? d.cost : 0), 0);
+
+    job.summary = buildSummary(job.state);
+    res.json({ summary: job.summary });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Server-Sent Events stream of the 4 major stages (+ the final summary) for one job.

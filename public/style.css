@@ -874,6 +874,65 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 .cart-note--warning li { align-items: flex-start; }
 .cart-note--warning li .icon { color: var(--error); margin-top: 2px; }
 
+/* One card per missing ingredient: role explanation, substitution
+   reasoning, real price comparison, the automatic decision, and a real
+   override action -- additive alongside the plain ingredient list and
+   cart note above, not a replacement for either. */
+.decision-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+}
+.decision-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-control);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-card);
+}
+.decision-card--unresolved {
+  border-color: var(--error-border);
+  background: var(--error-tint);
+}
+.decision-card__title {
+  margin: 0 0 8px;
+  font-family: var(--font-title);
+  color: var(--accent-strong);
+  font-size: 1.3rem;
+  text-transform: capitalize;
+}
+.decision-card__label { font-weight: 700; color: var(--ink); }
+.decision-card__role,
+.decision-card__substitution,
+.decision-card__decision {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.decision-card__decision {
+  margin-bottom: 12px;
+  color: var(--ink);
+  font-weight: 600;
+}
+.decision-card--unresolved .decision-card__decision { color: var(--error); }
+.decision-card__prices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  background: var(--accent-tint);
+  border-radius: var(--radius-control);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.decision-card__price-row { display: flex; align-items: baseline; gap: 6px; color: var(--accent-strong); }
+.decision-card__price-row span:first-child { font-weight: 600; color: var(--ink-soft); text-transform: capitalize; }
+.decision-card__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.decision-card__override:disabled { opacity: 0.6; cursor: default; }
+
 /* Total spent, written directly on the note instead of a separate boxed
    callout -- a torn line above it stands in for the "box" without
    actually being one. */

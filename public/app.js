@@ -214,6 +214,11 @@ function stopPotSteamAnimation() {
   potAnimTimer = null;
 }
 
+// Set once a run's initial POST /api/adapt responds, so the delegated
+// override-button handler (below) knows which job to act on after the
+// result screen is already showing.
+let currentJobId = null;
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   btn.disabled = true;
@@ -248,6 +253,7 @@ form.addEventListener('submit', async (e) => {
     showError(error);
     return;
   }
+  currentJobId = jobId;
 
   const source = new EventSource(`/api/adapt/${jobId}/stream`);
   source.onmessage = (ev) => {
@@ -311,12 +317,104 @@ document.getElementById('back-btn').addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------
+// Ingredient decision overrides -- real backend actions, not decorative
+// buttons. #summary's contents are fully replaced by innerHTML on every
+// render (initial result, and again after an override), so a single
+// delegated listener is used instead of binding to elements that won't
+// survive that replacement.
+// ---------------------------------------------------------------
+document.getElementById('summary').addEventListener('click', async (e) => {
+  const button = e.target.closest('[data-override]');
+  if (!button || button.disabled) return;
+
+  const ingredient = button.dataset.ingredient;
+  const choice = button.dataset.choice;
+  if (!currentJobId || !ingredient || !choice) return;
+
+  const card = button.closest('.decision-card');
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Adding...';
+  if (card) card.querySelectorAll('[data-override]').forEach((b) => { b.disabled = true; });
+
+  try {
+    const res = await fetch(`/api/adapt/${currentJobId}/override`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingredient, choice }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Could not update the cart.');
+
+    // Re-render from the fresh summary, restoring whichever tab was open.
+    const activeTabBtn = document.querySelector('.tab-btn.is-active');
+    const activeTab = activeTabBtn ? activeTabBtn.dataset.tab : 'ingredients';
+    document.getElementById('summary').innerHTML = renderTabs(data.summary);
+    setActiveTab(activeTab);
+  } catch (err) {
+    button.disabled = false;
+    button.textContent = originalLabel;
+    if (card) card.querySelectorAll('[data-override]').forEach((b) => { b.disabled = false; });
+    window.alert(`Couldn't add that to your cart: ${err.message}`);
+  }
+});
+
+// ---------------------------------------------------------------
 // Result rendering
 // ---------------------------------------------------------------
 function renderTabs(summary) {
   return `
     <div class="tab-panel" data-panel="ingredients">${renderIngredientsTab(summary)}</div>
     <div class="tab-panel" data-panel="directions" hidden>${renderDirectionsTab(summary)}</div>
+  `;
+}
+
+// One card per missing ingredient: why it's used in this recipe, whether/
+// why a substitute was considered, the real price comparison, the
+// automatic decision, and a real override button for whichever option
+// wasn't chosen (or both, when neither fit the budget).
+function renderDecisionCards(summary) {
+  const decisions = summary.ingredientDecisions || [];
+  if (!decisions.length) return '';
+
+  const priceLine = (label, price) => (price === null ? '' : `<span class="decision-card__price-row"><span>${escapeHtml(label)}</span><span>₹${price}</span></span>`);
+
+  const overrideButton = (d, choice, label) => {
+    const canAdd = choice === 'original' ? d.canAddOriginal : d.canAddSubstitute;
+    if (!canAdd) return '';
+    // Don't offer a button for the option that's already the one added.
+    const alreadyChosen = (choice === 'original' && d.decision === 'buy') || (choice === 'substitute' && d.decision === 'substitute');
+    if (alreadyChosen) return '';
+    return `<button type="button" class="btn-secondary decision-card__override" data-override data-ingredient="${escapeHtml(d.ingredient)}" data-choice="${choice}">${escapeHtml(label)}</button>`;
+  };
+
+  return `
+    <div class="decision-cards">
+      ${decisions.map((d) => {
+        const statusClass = d.decision === 'cannot_complete' ? 'decision-card--unresolved' : 'decision-card--resolved';
+        const substituteBlock = d.isEssential
+          ? ''
+          : d.substituteCandidate
+            ? `<p class="decision-card__substitution"><strong>${escapeHtml(d.substituteCandidate)}</strong> ${escapeHtml(d.substituteRationale)}</p>`
+            : '';
+        const prices = `${priceLine(d.ingredient, d.originalPrice)}${priceLine(d.substituteCandidate, d.substitutePrice)}`;
+        const originalLabel = d.decision === 'cannot_complete' ? `Add ${d.ingredient} anyway` : `Add ${d.ingredient} instead`;
+        const substituteLabel = d.decision === 'cannot_complete' ? `Add ${d.substituteCandidate} anyway` : `Add ${d.substituteCandidate} instead`;
+        return `
+          <div class="decision-card ${statusClass}">
+            <h4 class="decision-card__title">${escapeHtml(d.ingredient)}</h4>
+            <p class="decision-card__role"><span class="decision-card__label">Why it's used:</span> ${escapeHtml(d.roleExplanation)}</p>
+            ${substituteBlock}
+            ${prices ? `<div class="decision-card__prices">${prices}</div>` : ''}
+            <p class="decision-card__decision">${escapeHtml(d.reasoning)}</p>
+            <div class="decision-card__actions">
+              ${overrideButton(d, 'original', originalLabel)}
+              ${overrideButton(d, 'substitute', substituteLabel)}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
   `;
 }
 
@@ -359,6 +457,7 @@ function renderIngredientsTab(summary) {
         <p class="section-subheading">Adapted ingredient measurements</p>
         <ul class="ingredient-list">${ingredientRows}</ul>
         ${unresolved}
+        ${renderDecisionCards(summary)}
       </div>
       <div class="ingredients-columns__right" data-reveal>
         <div class="cart-note">
