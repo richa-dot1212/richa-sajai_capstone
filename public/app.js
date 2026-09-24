@@ -214,6 +214,11 @@ function stopPotSteamAnimation() {
   potAnimTimer = null;
 }
 
+// Set once a run's initial POST /api/adapt responds, so the delegated
+// override-button handler (below) knows which job to act on after the
+// result screen is already showing.
+let currentJobId = null;
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   btn.disabled = true;
@@ -248,6 +253,7 @@ form.addEventListener('submit', async (e) => {
     showError(error);
     return;
   }
+  currentJobId = jobId;
 
   const source = new EventSource(`/api/adapt/${jobId}/stream`);
   source.onmessage = (ev) => {
@@ -311,12 +317,90 @@ document.getElementById('back-btn').addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------
+// Ingredient decision overrides -- real backend actions, not decorative
+// buttons. #summary's contents are fully replaced by innerHTML on every
+// render (initial result, and again after an override), so a single
+// delegated listener is used instead of binding to elements that won't
+// survive that replacement.
+// ---------------------------------------------------------------
+document.getElementById('summary').addEventListener('click', async (e) => {
+  const button = e.target.closest('[data-override]');
+  if (!button || button.disabled) return;
+
+  const ingredient = button.dataset.ingredient;
+  const choice = button.dataset.choice;
+  if (!currentJobId || !ingredient || !choice) return;
+
+  // The button's sibling(s) -- e.g. both "add anyway" options for the same
+  // ingredient -- should disable together while the request is in flight.
+  const card = button.closest('.unresolved-box__item');
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Adding...';
+  if (card) card.querySelectorAll('[data-override]').forEach((b) => { b.disabled = true; });
+
+  try {
+    const res = await fetch(`/api/adapt/${currentJobId}/override`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingredient, choice }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Could not update the cart.');
+
+    // Re-render from the fresh summary, restoring whichever tab was open.
+    const activeTabBtn = document.querySelector('.tab-btn.is-active');
+    const activeTab = activeTabBtn ? activeTabBtn.dataset.tab : 'ingredients';
+    document.getElementById('summary').innerHTML = renderTabs(data.summary);
+    setActiveTab(activeTab);
+  } catch (err) {
+    button.disabled = false;
+    button.textContent = originalLabel;
+    if (card) card.querySelectorAll('[data-override]').forEach((b) => { b.disabled = false; });
+    window.alert(`Couldn't add that to your cart: ${err.message}`);
+  }
+});
+
+// ---------------------------------------------------------------
 // Result rendering
 // ---------------------------------------------------------------
 function renderTabs(summary) {
   return `
     <div class="tab-panel" data-panel="ingredients">${renderIngredientsTab(summary)}</div>
     <div class="tab-panel" data-panel="directions" hidden>${renderDirectionsTab(summary)}</div>
+  `;
+}
+
+// One yellow box (matching the gingham header's yellow) holding every
+// ingredient that couldn't be resolved within budget -- combines the old
+// separate "Heads up" note and per-ingredient reasoning into one place on
+// the right, below the Instamart cart note, per feedback that having the
+// same information split across a warning banner AND separate cards on
+// the left was redundant and hard to follow.
+function renderUnresolvedBox(summary) {
+  const decisions = (summary.ingredientDecisions || []).filter((d) => d.decision === 'cannot_complete');
+  if (!decisions.length) return '';
+
+  const overrideButton = (d, choice, label) => {
+    const canAdd = choice === 'original' ? d.canAddOriginal : d.canAddSubstitute;
+    if (!canAdd) return '';
+    return `<button type="button" class="btn-swiggy-orange" data-override data-ingredient="${escapeHtml(d.ingredient)}" data-choice="${choice}">${escapeHtml(label)}</button>`;
+  };
+
+  return `
+    <div class="unresolved-box">
+      <h3 class="unresolved-box__title">${icon('warning')}Heads up</h3>
+      ${decisions.map((d) => `
+        <div class="unresolved-box__item">
+          <p class="unresolved-box__ingredient">${escapeHtml(d.ingredient)}</p>
+          <p class="unresolved-box__text">${escapeHtml(d.roleExplanation)} ${escapeHtml(d.reasoning)}</p>
+          <div class="unresolved-box__actions">
+            ${overrideButton(d, 'original', `Add ${d.ingredient} anyway`)}
+            ${overrideButton(d, 'substitute', `Add ${d.substituteCandidate} anyway`)}
+          </div>
+        </div>
+      `).join('')}
+    </div>
   `;
 }
 
@@ -345,28 +429,20 @@ function renderIngredientsTab(summary) {
         .join('')
     : '<p class="empty">Nothing needed to be bought -- everything was already on hand or substituted.</p>';
 
-  const unresolved = summary.unresolved && summary.unresolved.length
-    ? `<div class="cart-note cart-note--warning">
-         <h3>Heads up</h3>
-         <p class="cart-note__sub">Could not be resolved within your budget</p>
-         <ul>${summary.unresolved.map((u) => `<li>${icon('warning')}<span><strong>${escapeHtml(u.ingredient)}</strong>: ${escapeHtml(u.reasoning)}</span></li>`).join('')}</ul>
-       </div>`
-    : '';
-
   return `
     <div class="ingredients-columns">
       <div class="ingredients-columns__left" data-reveal>
         <p class="section-subheading">Adapted ingredient measurements</p>
         <ul class="ingredient-list">${ingredientRows}</ul>
-        ${unresolved}
       </div>
       <div class="ingredients-columns__right" data-reveal>
         <div class="cart-note">
-          <h3><img class="cart-note__logo" src="images/swiggy-logo.webp" alt="" onerror="this.remove()" />From the Instamart cart</h3>
+          <h3><img class="cart-note__logo" src="images/swiggy-logo.webp" alt="" onerror="this.remove()" />Added to the Instamart cart</h3>
           <p class="cart-note__sub">Already added, ready for checkout in the app</p>
           ${cartItems.length ? `<ul>${cartRows}</ul>` : cartRows}
           <p class="cart-note__total">Total spent <span class="amount">₹${summary.totalCost}</span> <span class="of-budget">of ₹${summary.budget} budget</span></p>
         </div>
+        ${renderUnresolvedBox(summary)}
       </div>
     </div>
   `;

@@ -5,8 +5,9 @@ const { callLLM } = require('./llm');
 const { loadSkill } = require('./skill');
 const { scaleIngredients } = require('./servingSize');
 const { runSelfCheck } = require('./selfCheck');
-const { buildDocument, saveDocument } = require('./documentBuilder');
+const { buildDocumentHtml, renderPdf, saveDocumentPdf } = require('./pdfBuilder');
 const { decideSubstituteOrBuy } = require('./decision');
+const { addToCart } = require('./cartActions');
 
 // The 4 stages shown on the website -- everything underneath (the real
 // perceive/reason/act/observe steps) still happens and is still logged via
@@ -41,36 +42,42 @@ const RECIPE_SCHEMA = {
   required: ['title', 'servings', 'ingredients', 'instructions'],
 };
 
-// One batched call covers every missing ingredient's role/substitute
-// judgment -- this used to be a separate LLM call per ingredient
-// (plus a second call per ingredient just to decide substitute-vs-buy,
-// which is now plain code in agent/decision.js). Two LLM calls total
-// per run, regardless of how many ingredients are missing.
-const ROLE_BATCH_SCHEMA = {
+// One LLM call per missing ingredient -- a genuine perceive/reason/act/
+// observe loop, not one upfront prompt that decides everything before any
+// real Instamart data exists. This used to be a single batched call
+// covering every missing ingredient at once (to survive Gemini's
+// 20-requests/day free-tier quota); now on Groq, call-count minimization
+// is no longer the design goal -- correct, per-ingredient agentic
+// reasoning is. The decision itself (substitute vs. buy vs. unresolved)
+// still never uses the LLM -- that stays deterministic in
+// agent/decision.js, grounded in real prices once they're known.
+const INGREDIENT_REASONING_SCHEMA = {
   type: 'object',
   properties: {
-    evaluations: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          ingredient: { type: 'string' },
-          functionalRole: { type: 'string' },
-          substituteCandidate: { type: 'string' },
-          substituteIsCompatible: { type: 'boolean' },
-          substituteRationale: { type: 'string' },
-        },
-        required: [
-          'ingredient',
-          'functionalRole',
-          'substituteCandidate',
-          'substituteIsCompatible',
-          'substituteRationale',
-        ],
-      },
-    },
+    functionalRole: { type: 'string' },
+    // A plain-language sentence for the end user, e.g. "Butter is used
+    // here to provide fat and richness and help create the intended
+    // texture." -- not just an internal category label.
+    roleExplanation: { type: 'string' },
+    // True for a recipe's defining/central ingredient (e.g. the named
+    // protein). An essential ingredient should not have an unrelated
+    // substitute invented for it -- see the prompt below for the
+    // requestedChanges carve-out.
+    isEssential: { type: 'boolean' },
+    // '' when isEssential is true and no dietary transformation was
+    // requested -- there is deliberately no substitute to search for.
+    substituteCandidate: { type: 'string' },
+    substituteIsCompatible: { type: 'boolean' },
+    substituteRationale: { type: 'string' },
   },
-  required: ['evaluations'],
+  required: [
+    'functionalRole',
+    'roleExplanation',
+    'isEssential',
+    'substituteCandidate',
+    'substituteIsCompatible',
+    'substituteRationale',
+  ],
 };
 
 /**
@@ -195,7 +202,8 @@ function runWorkflow(input, context = {}) {
     // by their own session id (agent/session.js) -- a real bug found
     // after deploying to Railway, where one shared global login meant
     // every visitor saw whoever connected first as "already connected".
-    const instamart = new InstamartClient(context.userSessionId || require('crypto').randomUUID());
+    const userSessionId = context.userSessionId || require('crypto').randomUUID();
+    const instamart = new InstamartClient(userSessionId);
 
     let addressId = null;
     const state = {
@@ -272,37 +280,44 @@ function runWorkflow(input, context = {}) {
       // ==== STAGE 3: Finding/substituting ingredients ====
       emitStage('resolve');
 
-      let evaluations = [];
-      if (missing.length > 0) {
-        emit('reason', `Evaluating all ${missing.length} missing ingredient(s) in one batch using the Recipe Budget Skill`);
-        const batchResult = await callLLM({
-          systemInstruction: skillText,
-          prompt:
-            `Recipe: "${recipe.title}"\nInstructions:\n${recipe.instructions.join('\n').slice(0, 3000)}\n\n` +
-            `Missing ingredients (evaluate each one independently):\n` +
-            missing.map((m) => `- "${m.name}" (recipe calls for ${m.quantity})`).join('\n') +
-            '\n\nApply the Skill above to each: identify its functional role in this specific recipe, ' +
-            'propose one concrete substitute candidate, and judge whether the substitute is actually ' +
-            'compatible (preserves the role well enough) in this recipe. Every substitute will be ' +
-            'sourced fresh via Instamart -- never assume the user already has it on hand.',
-          responseSchema: ROLE_BATCH_SCHEMA,
-        });
-        evaluations = batchResult.evaluations || [];
-        emit('observe', `Received role/substitute evaluations for ${evaluations.length} ingredient(s)`);
-      }
-
       for (const ingredient of missing) {
-        const targetName = ingredient.name.toLowerCase();
-        const role = evaluations.find((e) => {
-          const evalName = e.ingredient.toLowerCase();
-          return evalName === targetName || evalName.includes(targetName) || targetName.includes(evalName);
-        }) || {
-          functionalRole: 'unclear',
-          substituteCandidate: ingredient.name,
-          substituteIsCompatible: false,
-          substituteRationale: 'No evaluation returned for this ingredient.',
-        };
-        emit('observe', `"${ingredient.name}" role: ${role.functionalRole}. Candidate substitute: ${role.substituteCandidate}`);
+        // REASON: one LLM call for this specific ingredient, in the
+        // context of this specific recipe -- not a batch judgment made
+        // before any Instamart data exists. requestedChanges is passed in
+        // here so the model knows whether a dietary transformation was
+        // actually asked for; that's the one thing that should ever make
+        // an essential/defining ingredient substitutable.
+        emit('reason', `Reasoning about "${ingredient.name}" using the Recipe Budget Skill`);
+        let role;
+        try {
+          role = await callLLM({
+            systemInstruction: skillText,
+            prompt:
+              `Recipe: "${recipe.title}"\nInstructions:\n${recipe.instructions.join('\n').slice(0, 3000)}\n\n` +
+              `Missing ingredient: "${ingredient.name}" (recipe calls for ${ingredient.quantity})\n` +
+              `User's requested changes (may be empty): "${input.requestedChanges || ''}"\n\n` +
+              'Apply the Skill above to this one ingredient: identify its functional role in this specific ' +
+              'recipe and explain that role in one or two plain sentences for the end user. Then decide ' +
+              'whether it is essential/defining for this dish (isEssential) -- if so, do not invent an ' +
+              'unrelated substitute unless the requested changes above actually call for a transformation ' +
+              '(vegetarian, vegan, dairy-free, etc.) that requires substituting it; in that case leave ' +
+              'substituteCandidate empty. Otherwise propose one concrete substitute candidate and judge ' +
+              'whether it is actually compatible (preserves the role well enough) in this recipe. Every ' +
+              'substitute will be sourced fresh via Instamart -- never assume the user already has it on hand.',
+            responseSchema: INGREDIENT_REASONING_SCHEMA,
+          });
+        } catch (err) {
+          emit('observe', `Reasoning failed for "${ingredient.name}" (${err.message}) -- treating as essential with no substitute`);
+          role = {
+            functionalRole: 'unclear',
+            roleExplanation: `Could not determine ${ingredient.name}'s role in this recipe.`,
+            isEssential: true,
+            substituteCandidate: '',
+            substituteIsCompatible: false,
+            substituteRationale: 'Reasoning step failed, so no substitute was proposed.',
+          };
+        }
+        emit('observe', `"${ingredient.name}" role: ${role.functionalRole}${role.isEssential ? ' (essential -- no substitute will be searched for)' : `. Candidate substitute: ${role.substituteCandidate}`}`);
 
         // ACT: real Instamart lookups (plain code, no LLM involved).
         let originalProduct = null;
@@ -316,21 +331,25 @@ function runWorkflow(input, context = {}) {
             ? `Found "${originalProduct.displayName}" for ₹${originalProduct.offerPrice}`
             : 'No matching product found on Instamart');
 
-          // Always search for the substitute too -- never assume the user
-          // already has it. They stated exactly what's missing, so a
-          // substitute for a missing ingredient needs sourcing just like
-          // the original would.
-          const substituteQuery = cleanForSearch(role.substituteCandidate);
-          emit('act', `Searching Instamart for substitute "${substituteQuery}"`);
-          const subSearchRes = await instamart.callTool('search_products', { query: substituteQuery, addressId });
-          substituteProduct = extractTopProduct(subSearchRes);
-          emit('observe', substituteProduct
-            ? `Found substitute "${substituteProduct.displayName}" for ₹${substituteProduct.offerPrice}`
-            : 'No matching substitute product found on Instamart');
+          // Only search for a substitute when one was actually proposed --
+          // an essential ingredient with no substitute candidate has
+          // nothing worth searching for, and searching anyway risks
+          // returning an irrelevant product for a nonsense query.
+          if (role.substituteCandidate) {
+            const substituteQuery = cleanForSearch(role.substituteCandidate);
+            emit('act', `Searching Instamart for substitute "${substituteQuery}"`);
+            const subSearchRes = await instamart.callTool('search_products', { query: substituteQuery, addressId });
+            substituteProduct = extractTopProduct(subSearchRes);
+            emit('observe', substituteProduct
+              ? `Found substitute "${substituteProduct.displayName}" for ₹${substituteProduct.offerPrice}`
+              : 'No matching substitute product found on Instamart');
+          }
         }
 
-        // REASON: deterministic decision (agent/decision.js) grounded in
-        // the LLM's compatibility judgment plus real prices/budget.
+        // REASON AGAIN: deterministic decision (agent/decision.js)
+        // grounded in the LLM's compatibility judgment plus real
+        // prices/budget -- arithmetic and comparisons never go through
+        // the LLM.
         const decision = decideSubstituteOrBuy({
           substituteIsCompatible: role.substituteIsCompatible,
           substituteCandidate: role.substituteCandidate,
@@ -344,9 +363,17 @@ function runWorkflow(input, context = {}) {
           ingredient: ingredient.name,
           quantity: ingredient.quantity,
           role: role.functionalRole,
+          roleExplanation: role.roleExplanation,
+          isEssential: role.isEssential,
           decision: decision.decision,
           reasoning: decision.reasoning,
           substituteCandidate: role.substituteCandidate,
+          substituteRationale: role.substituteRationale,
+          // Both real product lookups are kept in full (not just the one
+          // chosen), so a later user override can add "the other" option
+          // without re-searching Instamart.
+          originalProduct,
+          substituteProduct,
           product: null,
           cost: 0,
         };
@@ -361,10 +388,17 @@ function runWorkflow(input, context = {}) {
 
         if (productToBuy) {
           emit('act', `Adding "${productToBuy.displayName}" to Instamart cart`);
-          await instamart.callTool('update_cart', {
-            selectedAddressId: addressId,
-            items: [{ spinId: productToBuy.spinId, skuId: productToBuy.skuId, quantity: 1 }],
-          });
+          // A real bug: reusing the same long-lived `instamart` client/
+          // session for every cart-add across this whole loop (after it
+          // had already made several prior search_products calls) meant
+          // items reported as "added" here weren't actually landing in
+          // the real Swiggy cart -- confirmed by live testing against a
+          // real account. addToCart() creates and initializes a fresh
+          // client for this one mutation, matching the override route
+          // (server.js), which was the one path confirmed to work.
+          await addToCart({ sessionId: userSessionId, addressId, product: productToBuy });
+          // OBSERVE: confirm the cart action, then update the remaining
+          // budget deterministically before moving to the next ingredient.
           emit('observe', `Added to cart: ${productToBuy.displayName} (₹${productToBuy.offerPrice})`);
           record.product = productToBuy;
           record.cost = productToBuy.offerPrice;
@@ -391,15 +425,19 @@ function runWorkflow(input, context = {}) {
 
       // ==== STAGE 4: Recipe ready ====
       emitStage('ready');
-      emit('act', 'Generating personalized recipe document');
-      const documentMarkdown = buildDocument(state, input);
-      const savedPath = saveDocument(documentMarkdown, recipe.title);
+      emit('act', 'Generating personalized recipe document (styled PDF)');
+      const documentHtml = buildDocumentHtml(state, input);
+      const pdfBuffer = await renderPdf(documentHtml);
+      const savedPath = saveDocumentPdf(pdfBuffer, recipe.title);
       emit('observe', `Saved personalized recipe to ${savedPath}`);
 
       fetchClient.close();
 
       const summary = buildSummary(state);
-      return { state, documentMarkdown, savedPath, summary, log };
+      // addressId is returned alongside state so a later user override
+      // (server.js's /override route) can add a different real product to
+      // the same cart without re-resolving the delivery address.
+      return { state, savedPath, summary, log, addressId };
     } catch (err) {
       emit('error', err.message);
       try { fetchClient.close(); } catch {}
@@ -454,6 +492,29 @@ function buildSummary(state) {
     return { name: ing.name, quantity: ing.quantity, note };
   });
 
+  // One entry per missing ingredient with everything the result screen
+  // needs to show the actual reasoning (role, substitution explanation,
+  // real price comparison, the automatic decision) and to let the user
+  // override it afterward -- additive alongside `ingredients`/
+  // `substitutions`/`cartItems`/`unresolved` above, which are unchanged.
+  const ingredientDecisions = state.decisions.map((d) => ({
+    ingredient: d.ingredient,
+    functionalRole: d.role,
+    roleExplanation: d.roleExplanation || '',
+    isEssential: !!d.isEssential,
+    substituteCandidate: d.substituteCandidate || '',
+    substituteRationale: d.substituteRationale || '',
+    originalPrice: d.originalProduct ? d.originalProduct.offerPrice : null,
+    substitutePrice: d.substituteProduct ? d.substituteProduct.offerPrice : null,
+    decision: d.decision,
+    reasoning: d.reasoning,
+    chosenProduct: d.product ? d.product.displayName : null,
+    // What the "other" override button would add, if that option was ever
+    // actually found on Instamart -- null means there's nothing to offer.
+    canAddOriginal: !!d.originalProduct,
+    canAddSubstitute: !!d.substituteProduct,
+  }));
+
   return {
     title: state.recipe.title,
     servings: Number(state.input.servingSize),
@@ -464,6 +525,7 @@ function buildSummary(state) {
     substitutions: substitutions.map((s) => ({ ingredient: s.ingredient, substitute: s.substituteCandidate, reasoning: s.reasoning })),
     cartItems: purchases.map((p) => ({ ingredient: p.ingredient, product: p.product.displayName, cost: p.cost })),
     unresolved: unresolved.map((u) => ({ ingredient: u.ingredient, reasoning: u.reasoning })),
+    ingredientDecisions,
     totalCost: state.spentSoFar,
     budget: Number(state.input.budget),
   };
@@ -506,4 +568,4 @@ function extractTopProduct(searchResult) {
   }
 }
 
-module.exports = { runWorkflow, RecipeParseError, STAGES };
+module.exports = { runWorkflow, RecipeParseError, STAGES, buildSummary };
