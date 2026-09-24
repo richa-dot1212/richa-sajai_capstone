@@ -13,7 +13,12 @@ This is the actual capstone project, not a toy exercise — the pieces below (a 
 
 ## Why an agent, not a script
 
-The substitute-vs-buy judgment for each ingredient is genuinely ambiguous and budget-dependent — it needs live pricing, a compatibility judgment specific to *this* recipe, and it can require reconsidering an earlier decision if a later purchase would blow the budget. That's real branching, not a fixed pipeline. Everything mechanical (serving-size arithmetic, price comparisons, budget bookkeeping, the final substitute/buy decision itself) is deliberately kept as plain code — see `agent/decision.js` and `agent/servingSize.js` — and the LLM is only used for the two genuinely ambiguous steps: parsing an arbitrary recipe page, and judging each missing ingredient's role/substitute compatibility.
+The substitute-vs-buy judgment for each ingredient is genuinely ambiguous and budget-dependent — it needs live pricing, a compatibility judgment specific to *this* recipe, and it can require reconsidering an earlier decision if a later purchase would blow the budget. That's real branching, not a fixed pipeline. Everything mechanical (serving-size arithmetic, price comparisons, budget bookkeeping, the final substitute/buy decision itself) is deliberately kept as plain code — see `agent/decision.js` and `agent/servingSize.js` — and the LLM is only used for two calls total per run, no matter how many ingredients are missing:
+
+1. **Parse the recipe** (`agent/workflow.js`, first `callLLM`) — title, ingredients, instructions from an arbitrary page's content.
+2. **One batched role/substitute-compatibility call** covering *every* missing ingredient at once (`agent/workflow.js`, second `callLLM`) — what each one does in this specific recipe, and whether a candidate substitute is compatible.
+
+The actual buy-vs-substitute decision per ingredient is **not** an LLM call — `agent/decision.js`'s `decideSubstituteOrBuy()` takes the compatibility judgment from step 2 plus the real prices/remaining budget and applies a plain deterministic rule. Earlier in development this was `1 + 2×(missing ingredients)` calls (a separate role call *and* a separate decision call per ingredient); collapsing the per-ingredient role calls into one batch and replacing the decision call with code brought it down to a flat 2, regardless of how many ingredients are missing.
 
 ## Quick start (for someone cloning this repo)
 
@@ -31,21 +36,15 @@ Create a `.env` file in the project root:
 GROQ_API_KEY=your-key-here
 ```
 
-**One-time Swiggy login** (the Instamart MCP needs this before the agent can search products or use your cart):
-
-```bash
-node scripts/swiggy-mcp-proxy.js
-```
-
-This opens a browser — log into your real Swiggy account. Leave that terminal running (or just re-run it later; it reuses the cached login for ~5 days). See `examples/sample-runs.md` for why this proxy exists — it works around a real bug in Swiggy's own OAuth metadata.
-
 **Run the app:**
 
 ```bash
 npm start
 ```
 
-Open `http://localhost:3000`, fill in a recipe URL, what you're missing, your serving size and budget, and click **Adapt My Recipe**. Progress shows as 4 stages (Understanding recipe → Checking ingredients and budget → Finding/substituting ingredients → Recipe ready), then a summary with a link to the full downloaded document.
+Open `http://localhost:3000`. The home screen's **Connect to Swiggy** button is the one-time login step — it takes you through a real OAuth login against your own Swiggy account (`agent/swiggyOAuth.js`, a custom OAuth 2.1+PKCE client the app talks to directly; not the `mcp-remote`/proxy setup used earlier in development, which only works when the browser and the server are the same machine — see `agent/instamartClient.js`'s header comment for why that path was replaced). The login is per-browser-session via a cookie (`agent/session.js`), so on a shared/public deployment each visitor connects their own account rather than sharing whoever logged in first.
+
+Then fill in a recipe URL, what you're missing, your serving size and budget, and click **Adapt My Recipe**. Progress shows as 4 stages (Understanding recipe → Checking ingredients and budget → Finding/substituting ingredients → Recipe ready), then a summary with a link to the full downloaded document.
 
 You can also run it from the command line without the website:
 
@@ -55,7 +54,8 @@ node scripts/run-agent-cli.js "<recipe-url>" "<missing ingredients, comma-separa
 
 ## Known limitations
 
-- **The Swiggy Instamart MCP has a real, currently-open upstream bug** (broken OAuth metadata) that this repo works around locally with a proxy — see `examples/sample-runs.md` for details.
+- **The Swiggy Instamart MCP has a real, currently-open upstream bug** (broken OAuth metadata) — this only affects `.mcp.json`'s MCP server (used for local development via Claude Code itself), which is why `scripts/swiggy-mcp-proxy.js` still exists as a metadata-fixing workaround for that path. The live app doesn't use `mcp-remote` or that proxy at all; it talks to Swiggy directly with its own OAuth client (see the Quick start section above and `agent/instamartClient.js`'s header comment).
+- Swiggy only whitelists a fixed list of OAuth redirect URIs for a *fresh* login (localhost and a few known dev tools) — an existing logged-in browser session bypasses this, but a brand-new incognito session on a public deployment (e.g. Railway) may hit this restriction. This is a real restriction on Swiggy's side, not a bug in this app.
 - Earlier development used Gemini, whose free-tier quota (20 requests/day) proved too tight for even routine testing — see `BUILD_LOG.md` for that history. The project now uses Groq (`agent/llm.js`), which is both faster and not similarly constrained.
 - Recipe parsing assumes the URL points at an actual recipe page; a non-recipe page is detected and reported cleanly rather than producing a garbage result (see `agent/workflow.js`'s `RecipeParseError`).
 
@@ -63,8 +63,10 @@ node scripts/run-agent-cli.js "<recipe-url>" "<missing ingredients, comma-separa
 
 ```
 .claude/skills/recipe-budget-agent/SKILL.md   custom Skill: how to evaluate one missing ingredient
-.mcp.json                                     Fetch MCP + Swiggy Instamart MCP config
-scripts/swiggy-mcp-proxy.js                   local fix-up proxy for the Swiggy MCP OAuth bug
+.mcp.json                                     Fetch MCP + Swiggy Instamart MCP config (local dev only, via Claude Code)
+scripts/swiggy-mcp-proxy.js                   legacy: metadata-fixing proxy, only used by .mcp.json's dev-time MCP
+agent/swiggyOAuth.js                          the real auth the live app uses -- direct OAuth 2.1+PKCE, not mcp-remote
+agent/session.js                              per-visitor login cookie, so each visitor connects their own account
 agent/                                        the actual agent: workflow, LLM client (Groq), MCP clients,
                                                deterministic decision/scaling/self-check logic
 server.js + public/                           the website (interface only -- no decision logic here)

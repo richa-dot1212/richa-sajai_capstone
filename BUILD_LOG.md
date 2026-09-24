@@ -2,7 +2,7 @@
 
 One entry per commit: date, time spent, rough tokens used, what shipped. Filled before each commit/push.
 
-**Running total across the whole project (through the latest entry below): ~25 hours, ~430-450K tokens.**
+**Running total across the whole project (through the latest entry below): ~47 hours, ~820-910K tokens.**
 
 ---
 
@@ -471,3 +471,13 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - Replaced the "asymmetric padding pushes centred content upward" trick from an earlier round with `justify-content: flex-start` on `.progress-body` -- the pot and checklist now start right after the header instead of centring in the remaining space with a large reserved empty area below them. This both moves them higher (the actual ask) and frees up real height the no-scroll screen needed back.
   - Shrunk the header band's padding, and bounded the pot's size by viewport height as well as width (`min(34vw, 40vh)`) so a short browser window shrinks the pot to fit rather than pushing the checklist off screen or forcing a scrollbar.
 - **What didn't work on the first try:** nothing broke -- this replaces a padding-based approach from an earlier round that was solving the same "move it up" problem in a way that actively worked against "don't let this screen scroll," since reserved empty padding adds height a fixed-viewport screen can't spare.
+
+## 2026-09-24 -- Pot slightly bigger (still viewport-bounded), README + BUILD_LOG refresh (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~6-7K
+- **What shipped:**
+  - Pot size bumped up a bit more (`clamp(200px, min(34vw,40vh), 420px)` -> `clamp(220px, min(37vw,44vh), 460px)`), keeping the `vh`-bound from the previous round so the no-scroll progress screen still shrinks it on a short window instead of forcing scroll.
+  - **README.md brought back in line with the actual current code**, which had drifted stale across this whole frontend-heavy session: the Quick Start's Swiggy login instructions still described the old `scripts/swiggy-mcp-proxy.js` + `mcp-remote` flow, but the live app has used its own direct OAuth 2.1+PKCE client (`agent/swiggyOAuth.js`) with a per-visitor session cookie for a while now -- the proxy is legacy, only still relevant to `.mcp.json`'s local dev-time MCP connection via Claude Code itself, not the deployed app. Rewrote the login section, the Known Limitations section, and the project-structure table to say so accurately, and made the "why an agent" section state the exact LLM call count (2 total per run, not "some ambiguous number") with a one-line history of what got cut to reach that.
+  - Updated the running-total line at the top of this file (~25h/~430-450K -> ~47h/~820-910K), tallying every entry logged since the last checkpoint rather than guessing.
+- **What didn't work on the first try:** nothing broke this round -- the README staleness wasn't a bug introduced now, it was drift that had been accumulating silently across ~35 frontend-only commits that never touched documentation; worth being more deliberate about re-checking docs periodically during a long run of unrelated changes rather than only at the end.

@@ -518,7 +518,7 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   /* Bounded by viewport height as well as width -- this screen no longer
      scrolls, so on a short window the pot needs to shrink to fit rather
      than pushing the checklist off screen. */
-  width: clamp(200px, min(34vw, 40vh), 420px);
+  width: clamp(220px, min(37vw, 44vh), 460px);
   aspect-ratio: 1 / 1;
   margin: 0 0 8px;
 }
