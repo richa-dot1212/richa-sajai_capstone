@@ -2,7 +2,7 @@
 
 One entry per commit: date, time spent, rough tokens used, what shipped. Filled before each commit/push.
 
-**Running total across the whole project (through the latest entry below): ~14.5 hours, ~260-275K tokens.**
+**Running total across the whole project (through the latest entry below): ~47 hours, ~820-910K tokens.**
 
 ---
 
@@ -118,3 +118,366 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   1. First real live run on Groq failed with a `413`: the on-demand tier caps at 8000 tokens/minute, and the prompt (45,000 characters of recipe content, sized for Gemini's much higher limit) blew past it. Trimmed prompt sizes, and fixed `fetchRecipeMarkdown` to return just the chunk the ingredient lines were actually found in, not that chunk padded with the entire previous chunk.
   2. That first trim (a blind `slice(0, 12000)` of the old, padded chunk) then failed to find a real recipe at all -- the trimmed window landed in boilerplate before the actual ingredient list. Fixed properly by returning the matched chunk itself.
   3. While verifying the substitute-purchasing fix, found the actual cart-search was returning the *same* (wrong) product for both the original ingredient and its substitute -- e.g. searching "unsalted margarine (e.g., Earth Balance), melted and cooled" on Instamart. Ingredient names and substitute candidates carry recipe-specific phrasing that makes a poor search query. Added `cleanForSearch()` to strip parenthetical asides and trailing prep clauses before querying; confirmed live that the substitute search then found a genuinely different, cheaper product.
+
+## 2026-09-22 -- Deployment fixes + frontend redesign (on a separate branch)
+
+- **Time spent:** ~4 hours (Railway deployment, a real per-visitor session bug found post-deploy, investigating a genuine Swiggy client-whitelist restriction, and a full visual redesign)
+- **Rough tokens used:** ~65-75K
+- **What shipped:**
+  - Deployed to Railway (`main`): added `engines.node` to `package.json`, walked through account/env-var/domain setup. Confirmed the app runs on a real public URL.
+  - Real bug found immediately after deploy: the professor opened the live link and saw Instamart as "already connected" -- `agent/swiggyOAuth.js` stored the OAuth token in one global variable, so every visitor shared whoever logged in first. Fixed with `agent/session.js` (a minimal cookie-based per-visitor id) and keyed token storage by session id throughout `swiggyOAuth.js`, `instamartClient.js`, and `workflow.js`. Verified locally with two separate cookie jars getting independent, isolated login states.
+  - Investigated a second real issue surfaced by testing in incognito: Swiggy only allows OAuth sign-in from a small set of pre-approved redirect URLs (confirmed via their public `swiggy-mcp-server-manifest` GitHub repo -- Claude, ChatGPT, VS Code, Postman, and plain `localhost` are whitelisted; our Railway URL is not). Regular-tab logins had been succeeding only because the browser already had an active Swiggy session, which bypasses the strict new-client check. This is a genuine external policy restriction, not a bug in our code -- documented here rather than silently worked around.
+  - Redesigned the frontend on a **new branch** (`frontend-redesign-recipe-book`, `main` untouched) using the installed design-taste-frontend skill: audited the existing plain form UI first (dial reading: variance ~1-2, motion ~1, density ~4), then rebuilt the visual layer only -- every element id/class the JS depends on preserved exactly, zero changes to `agent/`, API routes, or the workflow. New design: self-hosted Cormorant Garamond + Karla (no runtime Google Fonts dependency), a paper/ink/single-forest-green-accent palette (deliberately not the cliche cream+brass+espresso "artisan" palette), real inlined Phosphor icons replacing emoji glyphs, a proper card/step-list/result presentation, full dark-mode token set, and mobile-responsive breakpoints.
+- **What didn't work on the first try:** while writing the redesign's result markup, initially left the download link's `<a>` element with no static text and no JS fallback to fill it in (the JS only ever set `.href`, never `.textContent` or innerHTML) -- caught during a pre-commit ID/functionality audit before it shipped, not from a live failure. Fixed by restoring visible link text directly in the markup alongside an icon.
+
+## 2026-09-22 -- Frontend redesign v2: multi-screen flow + light illustrated-cookbook style (same branch)
+
+- **Time spent:** ~2.5 hours (rebuilt HTML/CSS/JS into 3 screens, a small additive backend data change, a new self-hosted font, and live end-to-end verification)
+- **Rough tokens used:** ~35-40K
+- **What shipped:** the user reviewed the first redesign against a real illustrated-cookbook reference image and asked for a different direction -- light mode only (no dark-mode branch), and three distinct full-screen views instead of one scrolling page: (1) an input screen using the full viewport width with a much more prominent "connect Swiggy" step (a real call-to-action banner, not a small pill, since it's a required prerequisite), (2) a dedicated full-screen progress checklist, (3) a result screen with two switchable tabs -- Ingredients (full ingredient list, a torn-notebook-paper-styled "added to Instamart cart" note with price and a clear badge per item, and a total-cost summary) and Directions (numbered steps) -- with the recipe title in a large handwritten script font and the download link available regardless of which tab is active.
+  - Asked 3 clarifying questions before rebuilding (no image-generation tool available, so no illustrated food art was possible): confirmed typography+color+paper-texture only (no attempted illustrations), one consistent pastel palette across all three screens rather than a different tone per screen, and a playful script font (Caveat, self-hosted) specifically for the recipe title while keeping Karla for everything else.
+  - Small additive backend change: `agent/workflow.js`'s `buildSummary()` now also returns `title`, `ingredients` (the full scaled list, each annotated with a substituted/bought/unresolved note), and `instructions` -- data the workflow already computed for the saved document but never exposed to the website. No change to any decision logic, MCP call, or workflow step.
+  - Verified live end-to-end through the real API (a no-missing-ingredients case, since the Swiggy session had reset on server restart): confirmed the new summary shape renders correctly -- real scaled quantities, real instructions, correct empty states for substitutions/cart/unresolved.
+- **What didn't work on the first try:** nothing broke this round -- the ID/functionality audit habit from the previous redesign (cross-checking every `getElementById` call against the actual markup before running anything) caught the tab/view wiring issues during writing rather than after.
+
+## 2026-09-22 -- Fix screen-switching scroll bug, back button, pill-style tabs (same branch)
+
+- **Time spent:** ~30 min
+- **Rough tokens used:** ~8-10K
+- **What shipped:** user-reported bug: the result screen appeared to render "lower on the same screen" as the progress checklist instead of as a clean separate screen. Real cause: `showView()` correctly toggled the `hidden` attribute, but never reset scroll position -- so the page stayed scrolled to wherever the previous (now-hidden) view had been, making the new view start below the fold. Fixed with `window.scrollTo(0, 0)` inside `showView()`. Also added a back button on the result screen (real Phosphor arrow-left icon) to return to the input screen, since there was previously no way back without a full page reload, and restyled the Ingredients/Directions tabs from an underline nav to two rounded-rectangle toggle buttons per feedback that switchability wasn't visually obvious enough.
+- **What didn't work on the first try:** nothing broke -- this was a targeted bug-fix round; the fix was verified by re-reading the exact `showView()` call sites rather than guessing.
+- *(Note: this entry was added retroactively -- it was missed at commit time and is being recorded now for an accurate log.)*
+
+## 2026-09-22 -- Real recipe photos, gingham "scrapbook" texture (same branch)
+
+- **Time spent:** ~2 hours (real-site testing to find a working image-extraction approach, a second real token-limit bug and its proper fix, and the gingham texture/photo layout)
+- **Rough tokens used:** ~30-35K
+- **What shipped:**
+  - Real recipe photo extraction: `agent/workflow.js` gains `fetchOgImage()`, one extra bounded raw-HTML `fetch_url` call (only when a URL is used, never for pasted text) that regex-extracts `og:image`/`twitter:image`. Wrapped so a missing/failed extraction never affects the rest of the run -- `imageUrl` is just `null`. Exposed via `buildSummary()`. Verified live against real sites: found a genuine dish photo on allrecipes.com, correctly found nothing within the bound on sallysbakingaddiction.com (matches that site's previously-documented extreme ad-script bloat) and on loveandlemons.com (likely client-side-rendered meta tags) -- both are honest, expected outcomes, not failures.
+  - Frontend: the Directions tab now shows a compact, scrapbook-style photo (mounted on a small gingham-backed mat) beside the steps when an image was found; falls back cleanly to steps-only otherwise, including at runtime if the image fails to load (hotlink protection -- `onerror` removes the mat, never a broken-image icon).
+  - Gingham texture: copied the user's own real photo (`Red picnic.jpg`) into `public/images/gingham.jpg` and applied it as a bold, tiled background behind the input screen and behind the Instamart cart note's column, per explicit direction and a provided reference image -- always behind solid opaque cards/notes, never behind text directly.
+- **What didn't work on the first try, and what was changed:**
+  1. First image-extraction test picked a since-dead SimplyRecipes URL that actually 404s -- the "recipe" was a 404 page's own boilerplate. This correctly triggered the existing `RecipeParseError` safety net (working as designed) but was initially mistaken for a bug; re-verified against real, live URLs instead.
+  2. That same dense 404-page content also produced a real `413` (Groq's 8000 token/minute cap) even after trimming the prompt to 10,000 characters -- a page-specific density issue, again really just a symptom of testing against a dead URL.
+  3. Genuine, separate bug found while fixing that: shrinking the flat `slice(0, N)` prefix to fit under Groq's token limit risked cutting off the real ingredient section entirely on some pages, since the relevant chunk (found earlier by `fetchRecipeMarkdown`) can have its ingredient list appear many thousands of characters into that chunk, not at the very start. Fixed properly with `windowAroundIngredients()`, which locates the ingredient list first and slices a window around it instead of blindly taking the prefix. Re-verified against the original known-good recipe (still parses all 10 ingredients correctly) and against a second real, live recipe with a genuine photo (all fields -- title, ingredients, instructions, and a real `imageUrl` -- came back correctly).
+
+## 2026-09-22 -- Fix silent stuck-on-progress-screen bug (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~6-8K
+- **What shipped:** user reported the "Checking ingredients and budget" step appearing stuck/spinning forever with no error shown. Traced the actual server log for that run: the job had genuinely failed fast, server-side, with a clear "Not logged into Swiggy yet" message -- `server.js`'s SSE `done`-event dispatch was correct. Real bug was in `public/app.js`: the `EventSource`'s native `onerror` handler (distinct from the `done` event's own `error` field) only closed the connection and re-enabled the submit button -- it never called `showError()`. Any SSE connection drop (server restart, network hiccup, a stale/unknown `jobId`) left the user stranded on the progress screen with no indication anything went wrong. Fixed by having `onerror` call `showError('Lost connection while adapting your recipe. Please try again.')`.
+- **What didn't work on the first try:** nothing broke this round -- found by tracing the exact dispatch chain (server log -> `server.js` SSE loop -> `app.js` event handlers) rather than guessing at the cause.
+
+## 2026-09-22 -- Fix progress screen not disappearing, confine gingham to the input card, deep-orange accent (same branch)
+
+- **Time spent:** ~35 min
+- **Rough tokens used:** ~8-10K
+- **What shipped:**
+  - **Real bug found and fixed:** the progress screen was staying visible underneath the result screen after the run finished, forcing users to scroll down to see their recipe. Root cause was a genuine CSS specificity bug, not a JS bug: `.view-progress` and `.view-error` both declared `display: flex` unconditionally in `style.css`, and an author stylesheet rule always overrides the browser's built-in `[hidden] { display: none }` default -- so toggling the `hidden` attribute in `showView()` never actually hid those two screens once they'd been shown. Fixed by scoping both rules to `:not([hidden])`.
+  - Per feedback that the full-page gingham background on the input screen made the text hard to read: removed it from `.view-input` entirely and replaced it with a confined "scrapbook" effect -- a rotated, gingham-backed card peeking out from behind the opaque recipe-input card only (`.recipe-card::before`), matching the layered-card reference images the user provided. The Instamart cart-note gingham backdrop on the result screen was untouched (already confined, not part of the complaint).
+  - Changed the accent color from a rose/red (`#c96b6b`) to a deep orange (`#cc6a24`) per request, updating the derived `--accent-strong`/`--accent-tint` tokens so every button, badge, and highlight across all 3 screens stays consistent (per the earlier "one accent color, used everywhere" rule).
+- **What didn't work on the first try:** nothing broke this round -- the progress-screen bug was found by reading the actual CSS cascade (comparing UA-stylesheet vs. author-stylesheet precedence) rather than re-guessing at the JS view-switching logic, which had already been correctly fixed in an earlier round.
+
+## 2026-09-22 -- Frontend v4: centered layout, navy-blue accent, CSS gingham band (same branch)
+
+- **Time spent:** ~1 hour (plan-mode design pass with 4 clarifying questions, license research on 2 named fonts, CSS/HTML restructuring)
+- **Rough tokens used:** ~20-25K
+- **What shipped:** user built an actual Canva reference design and asked for the live site to match it closely.
+  - Replaced the rose/orange accent with navy blue (`#1f3a68`/`#142544`/`#dbe4f2`) -- a pure 3-variable swap in `style.css`, since every accent usage already routed through those custom properties.
+  - Built a real, image-free "yellow gingham" band using two overlapping `repeating-linear-gradient` stripe sets over a cream base (`--gingham-band`), confined to a header band behind the hero title/CTA on the input screen and behind the title/tabs on the result screen -- deliberately different execution from the reverted v3 red-photo gingham (that one covered/backed cards and the user disliked it; this one is a header accent only, matching the new references).
+  - Restructured the input screen from a 2-column sticky sidebar+form into a single centered hero (kicker, title, subtitle, a promoted big pill "Connect to Swiggy" CTA) with the form as its own centered block below, and restructured the result screen's header into a stacked, centered back/download row -> title -> tabs, replacing the old left-aligned flex row.
+  - Removed the gingham background from behind the Instamart cart note per explicit feedback -- it's now a plain torn-paper note on the page background.
+  - Researched licensing for the two fonts the user named from their Canva file: Anaktoria is public domain/free for any use (safe to self-host); SwungNote is free for personal use only, commercial use requires contacting the author -- flagged this to the user as a real open decision (self-host anyway as a non-commercial student project, or swap to a similarly-styled Google Fonts alternative) rather than deciding it myself, since the site is deployed publicly on Railway.
+- **What didn't work on the first try / open items:** the actual font files, the Swiggy logo image, and the 4 hand-drawn illustration images are all pending from the user (illustrations need a one-off Node+`sharp` script to strip their white backgrounds, since this environment has no real Python/ImageMagick -- confirmed `python3` is just the Microsoft Store stub and the `convert` on PATH is Windows' unrelated NTFS-conversion tool, not ImageMagick). Shipped everything else now with safe fallback fonts (`Caveat`/`Georgia`) so the layout/color/gingham work is fully visible and testable without blocking on those assets.
+
+## 2026-09-23 -- Wire in the 4 hero illustrations (same branch)
+
+- **Time spent:** ~15 min
+- **Rough tokens used:** ~4-5K
+- **What shipped:** user supplied the 4 hand-drawn doodle PNGs (cookie, pancake stack, cake slice, macaron) referenced in the v4 plan. Verified each file's PNG header directly (`colorType` byte in the IHDR chunk) before use -- all 4 already have a real alpha channel (RGBA), so the planned white-background-stripping script wasn't needed, matching what the user said. Copied into `public/images/illustrations/` and wired into the input screen's hero via the `.hero-illustration` classes already added in the v4 CSS pass.
+- **What didn't work on the first try:** the images arrived as inline message content with no file path the first time, so I couldn't act on them directly (no tool saves pasted image content to disk) -- asked the user to save them and point me to the folder, which they did (their 4 most recent Downloads).
+
+## 2026-09-23 -- Full-bleed gingham header, 2-column form (same branch)
+
+- **Time spent:** ~25 min
+- **Rough tokens used:** ~7-8K
+- **What shipped:** per feedback against a new reference screenshot: the gingham band was an inset rounded box with cream margins showing on the sides -- moved it outside the page's padded wrapper (`.view-input { padding: 0 }`, hero is now a direct full-width child of the view) so it spans edge-to-edge like a real page header, matching the reference. Restructured the input form from a single stacked column into two columns matching the reference's composition exactly: "The recipe" (URL/paste-text) on the left, everything else (What's missing, Servings & budget, Anything else, submit button) stacked in a column on the right.
+- **What didn't work on the first try:** nothing broke -- straightforward CSS restructuring, verified the brace count and a live `curl` after.
+
+## 2026-09-23 -- Real fonts (Slackey + Anaktoria), lighter gingham, bigger illustrations (same branch)
+
+- **Time spent:** ~30 min
+- **Rough tokens used:** ~9-10K
+- **What shipped:**
+  - Vendored the two real fonts the user actually wanted: **Slackey** (Google Fonts, OFL, fetched directly from `fonts.gstatic.com`) for titles, and **Anaktoria** (the exact font Canva uses -- public domain per its designer George Douros, downloaded from Font Library's official package) for the accent/subtitle text. Anaktoria only ships as `.ttf`; converted to `.woff2` with `ttf2woff2` via `npx` to match the project's self-hosting convention (no CDN links, same as Karla/Caveat).
+  - Lightened the CSS gingham band: dropped the stripe alpha from 0.55 to 0.25 so the darkest (double-overlap) squares land close to the requested `#f9ecab`, worked out by solving the alpha-blend equation for the overlap color rather than guessing.
+  - Enlarged the 4 hero illustrations (`clamp(70px,9vw,110px)` -> `clamp(110px,13vw,170px)`) and nudged their positions outward to fill the wider header.
+  - Removed the "Home cooking, on budget" kicker line per feedback, and reduced the hero's vertical padding now that there's one less line of content.
+- **What didn't work on the first try:** nothing broke -- confirmed each new font file serves with a real 200 and CSS brace count stays balanced before committing.
+
+## 2026-09-23 -- Full-bleed result/progress headers, bigger hero, Anaktoria everywhere, pot-fill animation (same branch)
+
+- **Time spent:** ~1 hour
+- **Rough tokens used:** ~15-18K
+- **What shipped:**
+  - Added the real Swiggy logo (`swiggy-transparent-icon-free-png.webp`, user-provided, real transparent app icon) into the Instamart cart note heading.
+  - Extended the same full-bleed gingham-header treatment from the input screen to both the result screen (title/tabs/back/download row) and a new progress-screen header -- all three screens now share the same edge-to-edge header language instead of just screen 1.
+  - Restored the input hero to a bigger, more generous size per feedback (padding and title size both increased) after shrinking it in the previous round.
+  - Made Anaktoria the site's main body font (`--font-body`), not just an accent -- it now cascades into every ingredient/direction list, label, input, and button, with Karla kept as a fallback in the font stack so any glyph Anaktoria's ancient-scripts-oriented character set doesn't cover (e.g. the ₹ sign) still renders from Karla automatically.
+  - Built a pot-fill progress animation entirely in code (inline SVG matching the illustrations' navy line-art style, no new assets needed): a liquid rect clipped to the pot's interior shape animates its height as stages complete, reaching full at the last stage; small animated steam wisps for a bit of life. Wired into the existing `renderStages()` call in `app.js` via `updatePotFill()`, driven by the same stage data already being tracked -- no change to the real workflow logic.
+- **What didn't work on the first try:** nothing broke -- verified CSS brace balance and a handful of live asset requests (site, swiggy logo, fonts) after each pass before committing.
+
+## 2026-09-23 -- Revert Anaktoria-everywhere, bigger logo, remove notice box, note contrast fix (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~6-7K
+- **What shipped:** user tried Anaktoria as the site-wide body font and didn't like it for dense/functional text -- reverted `--font-body` back to Karla (the readable default) and kept Anaktoria only as `--font-accent`, applied narrowly to genuinely decorative small text (the home subtitle, the "Working on it" kicker on the progress screen) per their explicit split. All form inputs, the ingredient/directions lists, and the "Connect to Swiggy"/"Adapt My Recipe" buttons are back on Karla for readability.
+  - Enlarged the Swiggy logo in the cart note (28px -> 44px) -- it was too small to read clearly.
+  - Removed the blue "notice" callout box from the progress screen entirely (unnecessary per feedback) -- deleted its markup, CSS, and the two `app.js` lines that populated it.
+  - Fixed the Instamart cart note blending into the page background -- `--paper-note` was too close to `--paper` (both pale cream); changed it to a more distinct manila-paper tone (`#f7ecc4`, darker line color to match) so the note visibly stands out as its own object on the page.
+- **What didn't work on the first try:** nothing broke -- straightforward reverts/tweaks, verified CSS integrity and a live request before committing.
+
+## 2026-09-23 -- Whiter Instamart cart note (same branch)
+
+- **Time spent:** ~10 min
+- **Rough tokens used:** ~3-4K
+- **What shipped:** the cart note's manila-yellow paper tone from the last contrast fix still read as too yellow -- changed `--paper-note` to a much whiter off-white (`#fefdf8`) with a lighter line color, so the note now clearly reads as a distinct white paper object against the warmer cream page background.
+- **What didn't work on the first try / open item:** attempted to source the real SwungNote font file (now that the user confirmed this is a private, non-commercial project, satisfying its "personal use" license) from several free-font mirror sites -- blogfonts.com and dafontfree.net are Cloudflare-gated against scripted fetches, and onlinewebfonts.com hides its real download link behind obfuscated JS rather than a direct URL (also a signal its redistribution rights are murkier than a real foundry/library source). Asked the user to download the file themselves and hand it over, the same pattern already working for the illustrations and Swiggy logo, rather than fight an untrustworthy source.
+
+## 2026-09-23 -- Switch title font to Swung Note (same branch)
+
+- **Time spent:** ~10 min
+- **Rough tokens used:** ~3-4K
+- **What shipped:** user downloaded and provided the actual Swung Note `.ttf` file themselves (after I couldn't source it cleanly from any scriptable mirror) and confirmed this is a private, non-commercial project -- which satisfies the font's real "free for personal use" license from its original designer. Converted to `.woff2` with `ttf2woff2` (same as Anaktoria) and set it as the primary `--font-title`, ahead of Slackey in the fallback chain (kept as a safety net, not removed).
+- **What didn't work on the first try:** nothing broke -- confirmed the new font file serves with a real 200 before committing.
+
+## 2026-09-23 -- Uniform accent blue, bigger cart note, "Your adapted recipe" subtitle (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~5-6K
+- **What shipped:**
+  - Set `--accent` and `--accent-strong` to the same exact `#1b4b84` (previously two slightly different navy shades) so every blue accent and blue text on the site is now literally the same color, per request. The one place that relied on `--accent-strong` purely as a hover-darken shade (`.btn-primary:hover`) now derives its darker tone from `color-mix()` on the fly instead of a separate stored color, so hover feedback is preserved without reintroducing a second blue.
+  - Enlarged the Instamart cart note overall: more internal padding, bigger heading/list/logo/total-cost text, and gave its column a touch more width in the ingredients grid.
+  - Added "Your adapted recipe" under the recipe title on the result screen (in the same italic accent style as the home subtitle) since that area read as too empty.
+  - Noted for later: the 4 hand-drawn hero illustrations have their own blue baked into the PNG pixels (from the user's own drawing) and can't be recolored via CSS the way the SVG pot can -- left as-is; the user is planning to draw more illustrations later.
+- **What didn't work on the first try:** nothing broke -- verified CSS integrity and a live request before committing.
+
+## 2026-09-23 -- Torn-paper cart note + gingham backdrop (scrapbook look, same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~5-6K
+- **What shipped:** per feedback that the plain rectangular note was "throwing off" the ingredients page -- replaced the old perforated-left-edge-only treatment with an all-around jagged `clip-path` silhouette (torn on all 4 sides, not just a punched-hole left margin) plus a slight rotation, so it reads as a real torn scrap of paper rather than a rounded card. Reintroduced the yellow CSS gingham band as a backdrop behind the note's column (`.ingredients-columns__right`) -- this is the same gingham-behind-the-note idea from an earlier round that was reverted for looking wrong on the *full input screen background*; here it's confined to just the note's column on the result screen, which is a different, more deliberate scrapbook composition the user asked for directly this time.
+- **What didn't work on the first try:** nothing broke -- verified CSS integrity and a live request before committing; the exact torn-edge polygon may want a second pass once seen live (jag depth/frequency is easy to retune in one place).
+
+## 2026-09-23 -- Swap gingham backdrop for a real torn-paper PNG, revert note edge (same branch)
+
+- **Time spent:** ~15 min
+- **Rough tokens used:** ~4-5K
+- **What shipped:** per feedback, reverted the previous round's two changes: (1) the note itself goes back to the original perforated-left-edge ("punch hole") treatment instead of the new all-around jagged clip-path, and (2) the yellow gingham backdrop behind the note's column is replaced with a real kraft-paper-texture PNG the user supplied (`pngtree-brown-torn-paper-note-png-image_10116129.png`, from Downloads), sized to peek out around the note for the scrapbook effect instead of a repeating pattern.
+- **What didn't work on the first try:** nothing broke -- confirmed the new image serves with a real 200 before committing. Noted for later: the punch-hole cutouts still render as flat `--paper`-colored circles (matching the plain page background from the original design) rather than showing the new textured backdrop through them -- a minor visual mismatch now that there's a textured image behind instead of flat color, not fixed since the user asked to restore the original hole treatment exactly.
+
+## 2026-09-23 -- Site-wide motion system via the Taste skill (same branch)
+
+- **Time spent:** ~1 hour
+- **Rough tokens used:** ~25-30K
+- **What shipped:** a single cohesive motion layer across all three screens, built to the Taste skill's motion rules at `MOTION_INTENSITY: 5` (fluid-CSS tier -- no GSAP, no scroll-hijack, no animation library, which suits a vanilla-JS app with no build step). Every animation had to answer "what does this communicate?" per the skill's "motion must be motivated" rule; anything that only looked cool was dropped.
+  - **Shared tokens:** one easing (`--ease-out: cubic-bezier(0.16,1,0.3,1)`) and three durations used by everything, so unrelated transitions feel like the same object.
+  - **Entrance:** each screen's contents rise in sequence via a CSS `--enter-i` cascade (title -> subtitle -> CTA), communicating hierarchy. The 4 hand-drawn illustrations settle in like stickers being placed, reinforcing the scrapbook concept.
+  - **Hover/interaction:** buttons lift and cast a shadow, press pushes them back down; each icon nudges in the direction its action goes (forward arrow right, back arrow left, download arrow down) so the motion previews the result. Illustrations nudge on hover like physical stickers.
+  - **Scroll:** IntersectionObserver-driven reveals (the skill hard-bans `window.addEventListener('scroll')`), one-shot -- elements unobserve once shown, so scrolling back up never replays anything.
+  - **State transitions:** switching screens now crossfades (short fade-up out, fade-in in) instead of hard-cutting; tab switches fade the new panel in.
+  - **Progress:** the checklist builds top-to-bottom, and the pot fill moved from animating SVG `y`/`height` attributes to `transform: scaleY()` from the pot's base, per the skill's "animate only transform and opacity" rule.
+  - **Reduced motion:** a blanket `prefers-reduced-motion: reduce` block collapses every animation and transition to ~0ms. The scroll-reveal rules live inside a `no-preference` block, so under reduce the content is simply visible from the start rather than hidden.
+- **What didn't work on the first try, and what was fixed before shipping:**
+  1. The illustrations' entrance animation used `fill-mode: both`, which freezes the final transform and would have silently killed the hover nudge (an animation's forwards-fill beats a plain CSS rule). Caught while writing it; switched to `backwards` so the element returns to its own CSS once the entrance finishes.
+  2. The input screen is visible straight from the markup and never passes through `showView()` on first load, so its reveal target would have sat at `opacity: 0` permanently -- a blank form card. Added an explicit `revealIn(document)` on init.
+  3. Rebuilding the whole stage list on every update would have replayed the "completed" pop on every finished row each time a new one landed (visible flicker). Rewrote `renderStages()` to build rows once and only flip state classes, so the pop fires only on the row that actually just finished -- verified with a stubbed-DOM test over a full 4-stage run (pending -> active -> done ordering correct, pot fraction 0 -> .125 -> .375 -> .625 -> .875 -> 1.0).
+  4. Deliberately cut a bobbing-liquid animation: the progress screen already has steam and an active-stage pulse, and a third perpetual loop crossed from "alive" into "distracting" -- the skill's "not every card needs an infinite loop" rule.
+
+## 2026-09-23 -- Illustrations on the result screen (same branch)
+
+- **Time spent:** ~30 min
+- **Rough tokens used:** ~12-15K
+- **What shipped:** the user drew 10 more illustrations; used 6 of them (their call -- "you don't have to use all of them"), picked and placed for composition rather than dropped in wholesale.
+  - **Result header band (4):** cutlery, herb sprig, lemon slice and tomato slices frame the recipe title the same way the sweets frame the home hero. Deliberately savoury against the home screen's dessert set, so the two screens read as related without repeating themselves, and sized smaller (~78-124px vs the hero's 120-190px) because the band is much shorter than the hero. Positioned low in the band (22-58% vertical) so they clear the back/download buttons sitting in the top corners, with `overflow: hidden` on the band so the rotated art can't spill out and cause horizontal scroll.
+  - **Closing flourishes (2):** a bowl under the Instamart total, and a cheese plate after the last direction -- these signal "end of list" without another line of text. Placed in **normal document flow, not absolutely positioned**, specifically so they can never land on top of text however long a given recipe turns out to be.
+  - All six verified RGBA before use (no background stripping needed), given `alt=""` since they're decorative, and `loading="lazy"` so the result-screen art doesn't compete with the first paint of the input screen.
+- **What didn't work on the first try:** each band illustration needed its own resting tilt, which a shared entrance keyframe would have flattened (the animation's transform replaces the element's). Solved by storing each tilt in a `--rot` custom property that the keyframe reads, so the scale-in composes with the rotation instead of overwriting it -- same class of bug as the hero illustrations' fill-mode issue last round, caught before shipping this time.
+- **Known trade-off, not fixed:** all 10 illustrations are 2048x2048 PNGs (~170-320KB each) being displayed at ~120px. `loading="lazy"` limits the damage, but they're far larger than they need to be. Left as-is rather than adding an image-processing dependency the user didn't ask for -- worth revisiting before any wider deployment.
+
+## 2026-09-23 -- Per-tab illustrations, bigger art, progress-screen drawings (same branch)
+
+- **Time spent:** ~40 min
+- **Rough tokens used:** ~15-18K
+- **What shipped:** all 10 of the user's new drawings are now in use (plus the original 4 on the home hero), each screen and tab getting its own set so nothing repeats where two drawings would be seen together.
+  - **Bigger across the board:** home hero 190 -> 225px, result band 124 -> 175px, closing flourishes 160/175 -> 215/230px, new progress art at 200px. Worth noting these are square 2048px canvases with the drawing centred in transparent padding, so the visible art is meaningfully smaller than its box -- the boxes had to grow more than the numbers suggest to actually read as bigger.
+  - **Per-tab sets that swap:** Ingredients gets raw produce (tomato, lemon) framing the title with a vanilla flower closing the column; Directions gets cooking kit (cutlery, bottle) with a cheese plate closing the steps. Both pairs live in the markup in the same two slots; the band carries a `data-art` attribute and CSS decides which pair shows, so `setActiveTab` flips one attribute and the crossfade is entirely declarative -- no show/hide juggling in JS.
+  - **Swap animation:** the incoming pair scales up and fades in on a keyframe (staggered 90ms left-to-right); the outgoing pair stops matching the "showing" selector, falls back to the base rule and transitions out. Both directions animate from one attribute change.
+  - **Progress screen:** herb, bowl, leaf and fish flank the pot, anchored to the full-height screen rather than the short header band so there's room for them at size, and pinned to the outer edges clear of the centred 480px pot-and-checklist column. They stagger in after the pot.
+- **What didn't work on the first try, caught before shipping:**
+  1. First pass tried to fit two drawings per side inside the result header band. At the requested larger size two 175px drawings need ~350px of stacked height in a band that's only ~300px tall -- they'd have collided. Cut to one per side and moved the extra variety into the per-tab flourishes instead, which is what made the tab-swap idea work cleanly anyway.
+  2. Scoping the entrance animation to `.band-illustration` generally would have animated opacity 0 -> 0.85 on the *hidden* pair too, flashing both sets into view on arrival. Scoped the animation to the currently-showing set instead.
+  3. Put `overflow: hidden` on the progress screen to stop sideways scroll, then removed it -- that screen is `min-height: 100dvh`, so clipping it would make content unreachable on a short window. The art is inset from both edges instead, which solves the same problem without the risk.
+
+## 2026-09-23 -- Fix progress illustrations (were hidden behind the header), add peeking pair to result tabs (same branch)
+
+- **Time spent:** ~30 min
+- **Rough tokens used:** ~10-12K
+- **What shipped:**
+  - **Real bug found:** the progress-screen drawings were siblings placed *before* the header band in the DOM. Since the band has an opaque gingham background and later DOM siblings paint over earlier ones by default, the band was fully covering the art wherever their positions overlapped -- which is exactly why the previous round had to push them down to 27-66% of the screen just to make them visible at all, well past the header the user actually wanted them near. Fixed properly by moving the 4 `<img>` tags to be children of `.progress-header-band` itself, positioned relative to it.
+  - Two of the four now sit centred in the band; the other two are smaller and hang from the band's bottom edge, peeking a little past it into the body -- the "a little lower is okay" ask. This needed the band's `z-index` raised above `.progress-body` (and the equivalent `.view-result__body` on the result screen), otherwise the peeking portion would render *under* the next section instead of visibly overlapping it.
+  - Applied the same fix to the result screen's header band, which had the same design shape (its peek pair is new, added this round): `overflow: hidden` -- there specifically to stop rotated art causing sideways scroll -- was removed since the fixed z-index approach handles containment, and it would have clipped the very overlap being added. Each tab now gets 4 drawings instead of 2: Ingredients keeps tomato/lemon framing the title plus herb/leaf peeking below; Directions keeps cutlery/bottle plus fish/bowl peeking below. All previously-progress-only assets (herb, leaf, fish, bowl) get reused here since the two screens are never visible at the same time.
+  - Both the progress and result peek variants share a `--y` custom-property pattern (`translateY(-50%)` for the centred pair, `none` for the bottom-anchored peek pair) so one shown-state rule and one entrance keyframe cover both variants instead of duplicating them.
+- **What didn't work on the first try:** none of this round's code broke, but the earlier round's placement (art positioned deep in the body area) was itself the bug this round exists to fix -- worth noting since it shipped and looked plausible until checked against what the user actually asked for.
+
+## 2026-09-23 -- Fix progress illustrations vanishing, bigger art everywhere, softer/rounder home form (same branch)
+
+- **Time spent:** ~35 min
+- **Rough tokens used:** ~12-14K
+- **What shipped:**
+  - **Real bug fixed:** the progress-screen illustrations were disappearing shortly after showing. Their only visible state came from the entrance animation's `to` keyframe combined with `animation-fill-mode: backwards` -- but `backwards` only holds the *pre-start* state; it does not persist the end state the way `forwards`/`both` do. Once the 0.6s animation finished, each element snapped back to its un-animated base CSS, which set `opacity: 0` -- so the drawing vanished a moment after appearing. It also meant anyone with `prefers-reduced-motion` (who never runs the animation at all) would never see the art in the first place. Fixed by moving the real, final visible state into the base rule (unconditionally, not gated behind motion preference) and simplifying the keyframe to only describe the `from` state -- the animation now decorates the arrival without owning the element's visibility.
+  - **Bigger illustrations, matching the home hero's scale:** result-tab band art 175 -> 210px, progress-screen centred pair 165 -> 210px, with the smaller "peek" pairs bumped proportionally (125 -> 145px, 85 -> 140px) so the size difference between primary and accent drawings still reads as intentional hierarchy rather than everything just growing uniformly.
+  - **2 more illustrations on the progress screen** (vanilla, cheese -- reused from the result-tab flourishes, since progress and result-tab-closers are never on screen together), hanging even lower off the header band than the existing peek pair, smaller and more transparent (0.7 opacity) so they read as a third, subtler layer rather than competing with the main pair.
+  - **Home screen form, softer/rounder per a reference screenshot (Julienne):** established one consistent rounding scale used everywhere -- buttons always full-pill (`--radius-pill`), cards get the roundest corners (`--radius-card` 20 -> 32px), inputs/controls a step less (`--radius-control` 10 -> 16px). "Adapt My Recipe" and the secondary buttons (Download recipe, Back to start) are now pill-shaped like "Connect to Swiggy" already was, instead of the softer-rectangle shape they had before -- matching the reference's fully-rounded CTAs. Lightened the card's shadow (lower opacity, wider spread) and softened its border color so it reads as a gentle lift off the page rather than a heavy boxed-in rectangle.
+- **What didn't work on the first try:** the disappearing-illustration bug above was shipped in the previous round and only caught now while implementing this one -- a good example of why "verify live" matters even for animation-only changes that don't touch layout.
+
+## 2026-09-23 -- Positioning/sizing pass, ingredients subheading, kraft CSS texture, bigger progress art (same branch)
+
+- **Time spent:** ~35 min
+- **Rough tokens used:** ~10-12K
+- **What shipped:**
+  - **Directions tab:** the cutlery pair moved further left, the bottle pair further right (tab-specific position overrides, so Ingredients' tomato/lemon positions are untouched), and the bowl illustration ("olive in a basket") sized up specifically for its directions-tab appearance rather than growing the whole shared "peek" tier.
+  - **Ingredients tab:** added a small italic subheading, "Adapted ingredient measurements," above the ingredient list -- it was reading as unlabelled.
+  - **Cart note:** heading font switched from Swung Note to Anaktoria (italic), and the whole note sized back down (padding, heading/list/logo/total-cost all reduced) after the last couple of rounds had grown it -- it had overshot into feeling oversized.
+  - **Removed the stock kraft-paper PNG** behind the note's column, replaced with a pure-CSS texture (`--kraft-texture`): a handful of soft light/dark radial blobs over a kraft-brown base, no image request needed, same approach already used for the yellow gingham band.
+  - **Home hero:** added 2 more illustrations (vanilla, cheese -- reused from elsewhere, same size as the existing 4) alongside a home-subtitle font-size nudge from 18px to 19px ("just slightly" bigger).
+  - **Progress-screen art:** all 3 size tiers increased again (165-240px / 115-165px / 90-135px) per feedback that the previous round's bump still read as too small.
+- **What didn't work on the first try:** none of this round broke -- verified CSS brace balance, that every referenced class has a matching rule, and that every referenced image file exists before committing.
+
+## 2026-09-23 -- Horizontal progress stepper, per-illustration nudges, note shrink round 2 (same branch)
+
+- **Time spent:** ~40 min
+- **Rough tokens used:** ~13-15K
+- **What shipped:**
+  - **Progress checklist restructured left-to-right:** was a vertical list with a line down the left edge; now each stage is its own column (icon over label) in a row, connected by a horizontal line running through the icons instead. Widened `.progress-body` from 480px to 640px to give 4 labeled columns enough room, and added a small-screen font-size drop so it doesn't get too cramped under 560px.
+  - **Progress-screen illustrations bigger again** (now 190-270px / 135-195px / 110-155px across the 3 tiers) and deliberately de-mirrored: herb and leaf sit at different heights instead of the same, and all three tiers pushed further toward the edges -- "spread out" rather than everything clustered at the same distance from centre.
+  - **Per-tab illustration nudges:** rosemary (ingredients) and fish (directions) pulled inward from the edge via tab-scoped selectors so the change doesn't affect the other tab's shared classes; fish sized up specifically; the olive-basket bowl pulled further inward on directions too.
+  - **Cart note, round 2 of shrinking:** padding, margins and every font size inside it (heading, sub, list items, total-cost) reduced again after the previous round's shrink still read as too big; the kraft-textured column around it padded down to match. Swiggy logo increased 38px -> 56px, the opposite direction, since it read as too small next to the now-smaller heading.
+  - **"Adapted ingredient measurements" subheading** made larger (15px -> 22px) and switched to the accent blue plus bold weight, so it reads as a real subheading rather than a caption.
+  - **Home hero:** removed the vanilla illustration, reverted cookie/pancake to their pre-vanilla positions, moved cake further left and macaron further down (it was sitting close enough to the top edge to read as cropped).
+  - **Removed the vanilla flourish** that closed out the ingredients tab below the cart note (its CSS rule removed too, not just the markup).
+- **What didn't work on the first try:** nothing broke -- verified CSS brace balance, that the two vanilla removals left zero references behind in all three files, and pulled the served CSS directly to confirm the stepper is actually `flex-direction: row` rather than trusting the source edit alone.
+
+## 2026-09-23 -- Bigger illustrations across progress/ingredients/directions, overflow safeguard (same branch)
+
+- **Time spent:** ~30 min
+- **Rough tokens used:** ~9-10K
+- **What shipped:**
+  - **Sized up again, all three tiers, on both the result tabs and the progress screen** -- result band 210 -> 250px / peek 145 -> 175px (with the tab-specific fish/bowl overrides growing proportionally, now 215-220px); progress screen 270 -> 300px / 195 -> 225px / 155 -> 185px. Feedback was that the previous rounds' sizing still read as scattered and left the pages feeling empty.
+  - **Guarded against real horizontal overflow risk:** several progress-screen illustrations sit at small negative left/right percentages so they bleed slightly past the header band's edge (an intentional "a little outside the checkered part is fine" effect) -- pulled those offsets in a bit and added `overflow-x: hidden` on `body` as a blanket guarantee that no illustration, at any viewport width, can ever force a horizontal scrollbar. This is a global safety net rather than clipping any individual element, so the intentional bleed effect still reads correctly.
+  - **Shifted the pot + checklist higher** on the progress screen via asymmetric padding on `.progress-body` (less at the top, more reserved at the bottom) so the centred content sits closer to the header instead of dead-centre in the remaining viewport height.
+  - **Home hero:** moved the cake illustration further down (48% -> 58%) -- at the illustrations' current size the gap to macaron above it was smaller than the images themselves, so they were genuinely overlapping, not just visually close.
+  - **Ingredients cart note:** given a `max-width` and pushed right within its column (`margin-left: auto`) per feedback that it should sit further right and take up less width.
+- **What didn't work on the first try:** nothing broke -- verified CSS brace balance and confirmed the new `overflow-x: hidden` rule is actually present in the served stylesheet (not just the source file) before committing.
+
+## 2026-09-23 -- Kraft paper matches note width, decluttered progress art, restore original home layout (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~6-7K
+- **What shipped:**
+  - **Kraft-textured background now matches the note's footprint:** it was spanning the full grid column while the note itself sat narrower and pushed right (from an earlier round), leaving a strip of bare texture down the left with no note or price badge over it. Moved the sizing/positioning (`width: 84%; margin-left: auto`) onto the container itself instead of the note, so the kraft paper, the note, and the total-cost price badge all now share exactly the same width and alignment -- one shape instead of a paper cut-out floating inside a bigger one.
+  - **Progress screen decluttered:** dropped the third, smallest pair of illustrations (vanilla, cheese) that hung even lower than the other two -- four drawings stacked above the checklist was reading as crowded. The remaining two tiers moved down slightly for more breathing room near the header/pot area.
+  - **Home hero reverted to its original 4-illustration layout:** removed macaron, moved cheese into the slot macaron used to occupy (top-right, near the header), and restored cake to its original position -- undoing several rounds of position churn that had drifted away from the layout that worked.
+- **What didn't work on the first try:** nothing broke -- confirmed macaron and the peek2 tier both fully removed from the served HTML (zero references, not just deleted from source) and pulled the served CSS directly to confirm the new kraft-container sizing rule is live before committing.
+
+## 2026-09-23 -- Directions subheading, fix progress illustration overlap (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~6-7K
+- **What shipped:**
+  - Added a "Step-by-step guide" subheading above the Directions list, matching Ingredients' "Adapted ingredient measurements" -- generalized the CSS class from `.ingredients-subheading` to `.section-subheading` since it's now shared by both tabs, rather than duplicating the same rule under two names.
+  - **Fixed a real overlap bug on the progress screen:** the primary pair (herb/leaf) and the peek pair (bowl/fish) below them could genuinely collide -- at the sizes/offsets from the last round, the primary pair's height could extend well past the header band's bottom edge, directly into the vertical zone the peek pair hangs in. Worked the fix out against a worst-case (short) band height rather than just eyeballing one screenshot: brought both pairs to the same height instead of staggered (removes one source of asymmetric risk), pulled peek further down and further inward horizontally for a real margin on both axes, and reduced both tiers' sizes somewhat (300px->250px primary, 225px->190px peek) since fitting them without collision needed some size given back.
+- **What didn't work on the first try:** none of this round broke -- but worth being honest that the overlap being fixed here was introduced across several earlier rounds of "make it bigger" requests without re-checking the geometry each time, which is exactly how it went unnoticed until reported live.
+
+## 2026-09-23 -- Bigger progress illustrations, keeping the confirmed-good positions (same branch)
+
+- **Time spent:** ~10 min
+- **Rough tokens used:** ~3-4K
+- **What shipped:** user confirmed the progress-screen illustration *placement* from the overlap fix is right -- just sized them up (primary 250 -> 290px, peek 190 -> 220px). Left every position/rotation value untouched and only pushed the peek pair's vertical offset out a bit further (-55% -> -62%) to preserve the same worked-out clearance margin against the now-bigger primary pair, rather than let the growth quietly reintroduce the overlap that was just fixed.
+- **What didn't work on the first try:** nothing broke -- this was a size-only change layered onto already-verified positioning logic.
+
+## 2026-09-23 -- Shrink tomato only, wrap long recipe titles every 4 words (same branch)
+
+- **Time spent:** ~15 min
+- **Rough tokens used:** ~4-5K
+- **What shipped:**
+  - Sized down only the tomato illustration on the ingredients tab (a scoped `[data-art-for='ingredients']` override on its specific class), leaving lemon and every other illustration on both tabs untouched.
+  - Long recipe titles now break onto a new line every 4 words instead of relying on the browser's default wrap point (which would only break at the container edge, potentially after many more words). `setRecipeTitle()` in `app.js` chunks the title into 4-word groups joined by `<br>` (each word still escaped, since the title is external/scraped content), and switches to a smaller font-size scale (`.recipe-title--long`) once a title actually needs more than one line, so a long title doesn't dominate the header at the same size a short one uses.
+- **What didn't work on the first try:** nothing broke -- tested the word-chunking logic directly against a short title, an exactly-4-word title, a long multi-line title, and an empty string before wiring it in, rather than assuming the loop math was right.
+
+## 2026-09-23 -- Move rosemary closer to tomato on ingredients tab (same branch)
+
+- **Time spent:** ~5 min
+- **Rough tokens used:** ~2K
+- **What shipped:** pulled the rosemary (herb) illustration's horizontal position on the Ingredients tab from 15% to 7%, closing the gap to the tomato illustration next to it (at 1.5%) without touching either illustration's size or any other tab/screen's positions.
+
+## 2026-09-23 -- Remove kraft-paper backdrop, match the "Heads up" note's shadow-only look (same branch)
+
+- **Time spent:** ~10 min
+- **Rough tokens used:** ~3-4K
+- **What shipped:** removed the brown kraft-paper texture behind the Instamart cart note per feedback -- it now sits directly on the plain page background, the same treatment the "Heads up" unresolved-items note already had (that one was never inside the kraft-textured container, only ever a `.cart-note` on plain background). Both notes share the same base `.cart-note` box-shadow, so no new shadow rule was needed -- removing the background was enough to make them consistent. Also removed the now-fully-unused `--kraft-texture` CSS variable rather than leaving dead code behind.
+- **What didn't work on the first try:** nothing broke -- confirmed the variable has zero remaining references before deleting it, not just removed its one usage.
+
+## 2026-09-23 -- Fold total-spent into the note, drop the separate blue box (same branch)
+
+- **Time spent:** ~10 min
+- **Rough tokens used:** ~3-4K
+- **What shipped:** moved "Total spent ₹X of ₹Y budget" from its own blue-tinted `.total-cost` callout into the bottom of the cart note itself, separated only by a dashed line (echoing torn notebook paper rather than a boxed UI element). Removed the now-unused `.total-cost` CSS rules.
+- **What didn't work on the first try:** nothing broke -- confirmed no remaining references to the old class in either the markup or CSS before removing its rules.
+
+## 2026-09-24 -- Real hand-drawn pot illustrations replace the inline SVG (same branch)
+
+- **Time spent:** ~35 min
+- **Rough tokens used:** ~10-12K
+- **What shipped:** the user drew 8 real pot illustrations -- 4 fill levels, 2 steam-shape variants per level -- and asked for the pot on the progress screen to use them instead of the earlier code-drawn SVG. Grouped the 8 files into levels by their download timestamps (oldest pair = least filled, newest pair = most filled, confirmed visually by comparing liquid height across all 8 before committing to that mapping) and wired them in:
+  - `updatePotFill()` now maps the same stage-completion fraction it always used into a fill level (1-4, `Math.ceil(fraction * 4)`), instead of driving an SVG `scaleY` transform.
+  - Two `<img>` elements are stacked exactly on top of each other (`position: absolute; inset: 0`) showing the current level's two variants; a 1-second interval toggles which one is opaque, crossfading between them -- this is what reads as steam drifting, using real art instead of an animated SVG path.
+  - The crossfade interval only runs while the progress screen is actually visible: `showView()` now starts it on entering `view-progress` and stops it on leaving, so it doesn't keep quietly ticking (and repainting) in the background for the rest of the session.
+  - Respects `prefers-reduced-motion`: the fill level itself still updates for those users (that's real information about run progress, not just decoration), but the steam-swap interval never starts.
+  - Removed the old inline-SVG pot entirely (the clip-path, the liquid rect/wave paths, the outline strokes, the CSS keyframe) now that it's replaced by real drawings.
+- **What didn't work on the first try:** nothing broke -- verified the fraction-to-level mapping progresses correctly through a full 4-stage run (reaches level 4 exactly when the last stage finishes, not before or with an off-by-one) with a quick standalone test before wiring it into the actual stage-tracking code.
+
+## 2026-09-24 -- Much bigger pot illustration (same branch)
+
+- **Time spent:** ~5 min
+- **Rough tokens used:** ~2K
+- **What shipped:** the pot is the main entertainment on the progress screen while the agent works -- sized it up from 160-220px to 280-420px so it actually reads as the centrepiece instead of a small accent sitting above the checklist.
+
+## 2026-09-24 -- Real recipe content always wins over decorative art, stronger note shadow (same branch)
+
+- **Time spent:** ~15 min
+- **Rough tokens used:** ~4-5K
+- **What shipped:**
+  - **Fixed a real stacking-order bug:** the result header band was deliberately painted *above* the body content (`.view-result__body`) so its peeking illustrations (rosemary/leaf on Ingredients, fish/bowl on Directions) could visibly spill past the band's bottom edge. The side effect: at some viewport widths those same illustrations could render on top of the actual ingredient list or the cart note, since paint order -- not layout position -- decides what's visible when two things occupy the same pixels. Swapped the z-index priority so the body's real content always wins the paint order over the band's decoration. A peek illustration can still show through in genuinely empty margin/gutter space, but it can never again render on top of the note or any real text.
+  - Boosted the cart note's box-shadow (bigger blur/spread, higher opacity) for a more pronounced "lifted off the page" look, per feedback. Since the "Heads up" unresolved-items note shares the same base `.cart-note` rule, it gets the stronger shadow too, keeping both notes visually consistent.
+- **What didn't work on the first try:** none of this round broke -- the overlap being fixed was a real, previously-shipped side effect of the deliberate peek-illustration design, not a new regression; worth flagging that "let a decorative element paint above real content" is a pattern to be more careful with going forward.
+
+## 2026-09-24 -- Progress screen no longer scrolls, pot/stepper shifted higher (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~6-7K
+- **What shipped:**
+  - `.view-progress` changed from `min-height: 100dvh` to a fixed `height: 100dvh` with `overflow: hidden` -- previously the screen could grow taller than the viewport and scroll; now its content has to fit inside the viewport instead.
+  - Replaced the "asymmetric padding pushes centred content upward" trick from an earlier round with `justify-content: flex-start` on `.progress-body` -- the pot and checklist now start right after the header instead of centring in the remaining space with a large reserved empty area below them. This both moves them higher (the actual ask) and frees up real height the no-scroll screen needed back.
+  - Shrunk the header band's padding, and bounded the pot's size by viewport height as well as width (`min(34vw, 40vh)`) so a short browser window shrinks the pot to fit rather than pushing the checklist off screen or forcing a scrollbar.
+- **What didn't work on the first try:** nothing broke -- this replaces a padding-based approach from an earlier round that was solving the same "move it up" problem in a way that actively worked against "don't let this screen scroll," since reserved empty padding adds height a fixed-viewport screen can't spare.
+
+## 2026-09-24 -- Pot slightly bigger (still viewport-bounded), README + BUILD_LOG refresh (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~6-7K
+- **What shipped:**
+  - Pot size bumped up a bit more (`clamp(200px, min(34vw,40vh), 420px)` -> `clamp(220px, min(37vw,44vh), 460px)`), keeping the `vh`-bound from the previous round so the no-scroll progress screen still shrinks it on a short window instead of forcing scroll.
+  - **README.md brought back in line with the actual current code**, which had drifted stale across this whole frontend-heavy session: the Quick Start's Swiggy login instructions still described the old `scripts/swiggy-mcp-proxy.js` + `mcp-remote` flow, but the live app has used its own direct OAuth 2.1+PKCE client (`agent/swiggyOAuth.js`) with a per-visitor session cookie for a while now -- the proxy is legacy, only still relevant to `.mcp.json`'s local dev-time MCP connection via Claude Code itself, not the deployed app. Rewrote the login section, the Known Limitations section, and the project-structure table to say so accurately, and made the "why an agent" section state the exact LLM call count (2 total per run, not "some ambiguous number") with a one-line history of what got cut to reach that.
+  - Updated the running-total line at the top of this file (~25h/~430-450K -> ~47h/~820-910K), tallying every entry logged since the last checkpoint rather than guessing.
+- **What didn't work on the first try:** nothing broke this round -- the README staleness wasn't a bug introduced now, it was drift that had been accumulating silently across ~35 frontend-only commits that never touched documentation; worth being more deliberate about re-checking docs periodically during a long run of unrelated changes rather than only at the end.

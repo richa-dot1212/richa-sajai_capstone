@@ -1,0 +1,41 @@
+@font-face {
+  font-family: 'Karla';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('karla-variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Caveat';
+  font-style: normal;
+  font-weight: 600 700;
+  font-display: swap;
+  src: url('caveat-variable.woff2') format('woff2');
+}
+@font-face {
+  /* Slackey, Google Fonts (OFL) -- https://fonts.google.com/specimen/Slackey */
+  font-family: 'Slackey';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('slackey-regular.woff2') format('woff2');
+}
+@font-face {
+  /* Swung Note -- free for personal use per its designer; used here only
+     because this is a private, non-commercial project (confirmed with
+     the project owner). Not for reuse in a commercial deployment. */
+  font-family: 'Swung Note';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('swungnote-regular.woff2') format('woff2');
+}
+@font-face {
+  /* Anaktoria, George Douros -- public domain / free for any use,
+     https://fontlibrary.org/en/font/anaktoria-textfonts */
+  font-family: 'Anaktoria';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('anaktoria-regular.woff2') format('woff2');
+}

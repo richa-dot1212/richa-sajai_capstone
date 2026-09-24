@@ -1,52 +1,967 @@
-:root { color-scheme: light dark; }
+/* ============================================================
+   Recipe Budget Agent -- warm illustrated-cookbook palette.
+   Light mode only, by explicit request -- no dark-mode branch.
+   One consistent pastel palette across all three screens.
+   ============================================================ */
+:root {
+  color-scheme: light;
+
+  --paper: #fbf3e2;
+  --surface: #fffcf6;
+  --paper-note: #fefdf8;
+  --paper-note-line: #e3ddc9;
+
+  --ink: #3d2b1f;
+  --ink-soft: #7a6a57;
+  --ink-faint: #a79a87;
+
+  --border: #e8dcc4;
+  --border-soft: #f0e6d2;
+
+  --accent: #1b4b84;
+  --accent-strong: #1b4b84;
+  --accent-tint: #dce7f4;
+  --accent-contrast: #fffbf6;
+
+  --error: #9b4a2e;
+  --error-tint: #f5e3d6;
+  --error-border: #e8c9ac;
+
+  --font-title: 'Swung Note', 'Slackey', 'Caveat', 'Segoe Script', cursive;
+  --font-accent: 'Anaktoria', Georgia, 'Times New Roman', serif;
+  --font-body: 'Karla', system-ui, sans-serif;
+
+  /* One rounding scale, used consistently: buttons are always full-pill,
+     cards get the roundest corners, inputs/controls a step less so the
+     whole form reads as one soft, seamless family rather than a card
+     with sharper elements glued inside it. */
+  --radius-card: 32px;
+  --radius-control: 16px;
+  --radius-pill: 999px;
+
+  /* Lighter, wider-spread shadow than before -- reads as a soft lift off
+     the page rather than a heavy boxed-in card. */
+  --shadow-card: 0 1px 2px rgba(61, 43, 31, 0.03), 0 24px 48px -28px rgba(61, 43, 31, 0.16);
+
+  /* One easing and three durations for the whole site, so every
+     transition feels like it belongs to the same object. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 0.18s;
+  --dur-base: 0.3s;
+  --dur-slow: 0.5s;
+
+  /* Real gingham tablecloth photo (public/images/gingham.jpg) -- superseded
+     by --gingham-band below for the header bands, kept only in case a
+     future spot wants the photo texture again. */
+  --gingham: url('images/gingham.jpg');
+
+  /* Yellow plaid "gingham band" -- pure CSS, no image. Two overlapping
+     semi-transparent stripe sets over a cream base; the overlaps read as a
+     darker yellow, giving a woven-check look. Confined to header bands
+     only (never behind dense reading text). */
+  --gingham-band:
+    repeating-linear-gradient(0deg, transparent, transparent 22px, rgba(247, 209, 84, 0.25) 22px, rgba(247, 209, 84, 0.25) 44px),
+    repeating-linear-gradient(90deg, transparent, transparent 22px, rgba(247, 209, 84, 0.25) 22px, rgba(247, 209, 84, 0.25) 44px),
+    #fdf6df;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
 body {
-  font-family: system-ui, sans-serif;
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 32px 16px;
-  line-height: 1.5;
-}
-h1 { margin-bottom: 4px; }
-.subtitle { color: #666; margin-top: 0; }
-form { display: flex; flex-direction: column; gap: 14px; margin: 24px 0; }
-label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 14px; }
-label small { font-weight: 400; color: #666; }
-input, textarea {
-  font-size: 15px;
-  padding: 8px 10px;
-  border: 1px solid #999;
-  border-radius: 6px;
-  font-family: inherit;
-  resize: vertical;
-}
-.row { display: flex; gap: 14px; }
-.row label { flex: 1; }
-button {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
   font-size: 16px;
-  font-weight: 700;
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
-  background: #d9534f;
-  color: white;
-  cursor: pointer;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  /* The decorative illustrations intentionally sit close to (and
+     sometimes just past) the edge -- this guarantees none of them can
+     ever force a horizontal scrollbar, without needing to clip any of
+     them individually. */
+  overflow-x: hidden;
 }
-button:disabled { opacity: 0.6; cursor: default; }
-.notice { background: #fff3cd; border: 1px solid #ffe08a; padding: 10px 12px; border-radius: 6px; }
-.swiggy-status { padding: 10px 12px; border-radius: 6px; font-size: 14px; margin-bottom: 16px; }
-.swiggy-status.connected { background: #e6f4ea; color: #1e7e34; }
-.swiggy-status.disconnected { background: #fce8e6; color: #a50e0e; }
-.swiggy-status a { color: inherit; font-weight: 700; }
-#stage-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-#stage-list li { padding: 10px 14px; border-radius: 6px; font-size: 15px; font-weight: 600; }
-#stage-list li.stage-pending { background: #f2f2f2; color: #999; font-weight: 400; }
-#stage-list li.stage-active { background: #e8f0fe; color: #1a56db; }
-#stage-list li.stage-done { background: #e6f4ea; color: #1e7e34; }
-#summary h3 { margin-bottom: 4px; }
-#summary ul { margin-top: 0; padding-left: 20px; }
-#summary p.empty { color: #666; margin-top: 0; }
-#download-link {
-  display: inline-block;
-  margin: 12px 0;
+
+.icon { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0; }
+.kicker {
+  margin: 0 0 6px;
+  font-family: var(--font-accent);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: var(--accent-strong);
   font-weight: 700;
+  font-style: italic;
+}
+
+/* ================================================================
+   MOTION SYSTEM
+   Fluid-CSS tier: transform/opacity only, 180-500ms, one shared easing.
+   Every animation here answers "what does this communicate?" --
+   hierarchy, sequence, feedback, or state change. Nothing loops
+   forever except the two live-status indicators on the progress
+   screen (steam + active-stage pulse), which stop when the run ends.
+   All of it collapses to static under prefers-reduced-motion.
+   ================================================================ */
+
+/* ---------- Full-screen view mechanics ---------- */
+.view {
+  min-height: 100dvh;
+  width: 100%;
+  padding: clamp(24px, 4vw, 56px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Screen arrival: the container fades, its contents rise in sequence.
+     Communicates hierarchy -- the eye lands on the title, then the
+     supporting line, then the thing to click. */
+  .view:not([hidden]) { animation: view-in var(--dur-base) ease both; }
+
+  .view:not([hidden]) .brand-title,
+  .view:not([hidden]) .subtitle,
+  .view:not([hidden]) .swiggy-step,
+  .view:not([hidden]) .result-header-band__row,
+  .view:not([hidden]) .recipe-title,
+  .view:not([hidden]) .recipe-subtitle,
+  .view:not([hidden]) .tabs,
+  .view:not([hidden]) .progress-header-band .kicker,
+  .view:not([hidden]) .progress-header-band h2,
+  .view:not([hidden]) .pot-wrap {
+    animation: enter-rise var(--dur-slow) var(--ease-out) both;
+    animation-delay: calc(var(--enter-i, 0) * 80ms);
+  }
+
+  /* The hand-drawn assets settle in like stickers being placed,
+     which is the scrapbook idea the whole page is built on.
+     Fill mode is `backwards`, not `both`, so once the animation ends the
+     element goes back to its own CSS and the hover nudge still works. */
+  .view:not([hidden]) .hero-illustration {
+    animation: sticker-in 0.6s var(--ease-out) backwards;
+    animation-delay: calc(var(--enter-i, 0) * 80ms + 120ms);
+  }
+
+  /* Leaving a screen: a short fade-up so input -> progress -> result
+     reads as one flow changing state, not three hard cuts. */
+  .view.is-leaving { animation: view-leave 0.17s ease-in both; }
+}
+
+.brand-title { --enter-i: 1; }
+.subtitle { --enter-i: 2; }
+.swiggy-step { --enter-i: 3; }
+.hero-illustration--cookie { --enter-i: 1; }
+.hero-illustration--cheese { --enter-i: 2; }
+.hero-illustration--pancake { --enter-i: 3; }
+.hero-illustration--cake { --enter-i: 4; }
+.result-header-band__row { --enter-i: 0; }
+.recipe-title { --enter-i: 1; }
+.recipe-subtitle { --enter-i: 2; }
+.tabs { --enter-i: 3; }
+.progress-header-band .kicker { --enter-i: 0; }
+.progress-header-band h2 { --enter-i: 1; }
+.pot-wrap { --enter-i: 2; }
+
+@keyframes view-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes view-leave {
+  to { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes enter-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sticker-in {
+  from { opacity: 0; transform: translateY(-50%) scale(0.82) rotate(-7deg); }
+  to { opacity: 0.9; transform: translateY(-50%) scale(1) rotate(0); }
+}
+
+/* ---------- Scroll reveal ----------
+   Content below the fold fades up as you reach it, so a long recipe
+   unfolds rather than landing as a wall. Driven by IntersectionObserver
+   in app.js (never a scroll listener), and one-shot -- once revealed an
+   element stays put, so scrolling back up never re-animates anything. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+    transition-delay: calc(var(--reveal-i, 0) * 70ms);
+  }
+  [data-reveal].is-visible { opacity: 1; transform: none; }
+}
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: clamp(26px, 3.5vw, 40px);
+}
+.card h2 { font-size: 1.4rem; margin: 0 0 14px; }
+
+.gingham-band { background: var(--gingham-band); }
+
+/* ================================================================
+   SCREEN 1 -- input
+   ================================================================ */
+.view-input { padding: 0; }
+
+.view-input__layout {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 56px);
+}
+
+.view-input__hero {
+  position: relative;
+  text-align: center;
+  width: 100%;
+  padding: clamp(56px, 9vw, 96px) clamp(20px, 5vw, 40px);
+}
+
+.hero-illustration {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: clamp(145px, 16vw, 225px);
+  height: auto;
+  opacity: 0.9;
+  transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) ease;
+}
+/* Original 4-illustration layout, restored -- cheese now sits in the
+   slot macaron used to occupy. */
+.hero-illustration--cookie { left: -1%; top: 18%; }
+.hero-illustration--pancake { left: 4%; top: 72%; }
+.hero-illustration--cheese { right: 2%; top: 16%; }
+.hero-illustration--cake { right: -1%; top: 70%; }
+/* Nudging a drawing makes it feel like a physical sticker on the page,
+   which is the whole scrapbook conceit. */
+.hero-illustration:hover {
+  transform: translateY(-50%) scale(1.05) rotate(2deg);
+  opacity: 1;
+}
+@media (max-width: 900px) {
+  .hero-illustration { display: none; }
+}
+
+.brand-title {
+  margin: 0 0 14px;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: clamp(3.4rem, 7vw, 5.2rem);
+  line-height: 0.95;
+  color: var(--accent-strong);
+}
+
+.subtitle {
+  margin: 0 auto 28px;
+  max-width: 48ch;
+  color: var(--ink-soft);
+  font-size: 19px;
+  font-family: var(--font-accent);
+  font-style: italic;
+}
+
+.swiggy-step {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.swiggy-step p { margin: 0 0 4px; font-size: 13.5px; color: var(--ink-soft); }
+.swiggy-step .btn-primary { padding: 16px 32px; border-radius: var(--radius-pill); font-size: 16px; }
+
+.swiggy-step.is-connected {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+  background: var(--accent-tint);
+  border-radius: var(--radius-pill);
+}
+.swiggy-step.is-connected .icon { color: var(--accent-strong); }
+.swiggy-step.is-connected span { font-weight: 700; font-size: 14px; color: var(--accent-strong); }
+
+.recipe-card form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(28px, 4vw, 56px);
+  align-items: start;
+}
+.form-col { display: flex; flex-direction: column; gap: 22px; }
+.form-col--recipe .field-group { height: 100%; }
+
+/* ---------- Form ---------- */
+form { display: flex; flex-direction: column; gap: 22px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+
+.field-group {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.field-group legend {
+  padding: 0;
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+  margin-bottom: 2px;
+}
+
+label { display: block; font-weight: 600; font-size: 13.5px; color: var(--ink-soft); }
+.hint { margin: 0; font-size: 12.5px; color: var(--ink-faint); }
+
+input, textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 15.5px;
+  color: var(--ink);
+  background: var(--paper);
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input::placeholder, textarea::placeholder { color: var(--ink-faint); }
+input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--ink-faint); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border-soft); }
+
+/* ---------- Buttons ----------
+   Hover lifts the button and nudges its icon in the direction the
+   action goes (forward / back / down), so the motion previews the
+   result. Press pushes it back down -- physical feedback. */
+.btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: var(--font-body); font-size: 16px; font-weight: 700;
+  color: var(--accent-contrast); background: var(--accent);
+  border: none; border-radius: var(--radius-pill);
+  padding: 15px 24px; cursor: pointer;
+  transition: background-color var(--dur-fast) ease,
+              transform var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
+}
+.btn-primary .icon { transition: transform var(--dur-base) var(--ease-out); }
+.btn-primary:hover {
+  background: color-mix(in srgb, var(--accent) 80%, black);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 22px -12px color-mix(in srgb, var(--accent) 75%, transparent);
+}
+.btn-primary:hover .icon { transform: translateX(4px); }
+.btn-primary:active { transform: translateY(0) scale(0.98); box-shadow: none; }
+.btn-primary:disabled { opacity: 0.6; cursor: default; transform: none; box-shadow: none; }
+.btn-primary:disabled .icon { transform: none; }
+
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 700; font-size: 14px; color: var(--accent-strong);
+  text-decoration: none; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-pill);
+  padding: 10px 18px; cursor: pointer;
+  transition: border-color var(--dur-fast) ease,
+              background-color var(--dur-fast) ease,
+              transform var(--dur-fast) var(--ease-out);
+}
+.btn-secondary .icon { transition: transform var(--dur-base) var(--ease-out); }
+.btn-secondary:hover { border-color: var(--accent); background: var(--accent-tint); transform: translateY(-2px); }
+.btn-secondary:active { transform: translateY(0) scale(0.98); }
+/* The download arrow drops, matching what the button does. */
+#download-link:hover .icon { transform: translateY(3px); }
+
+/* ================================================================
+   SCREEN 2 -- progress
+   ================================================================ */
+/* No overflow:hidden here -- this screen is min-height:100dvh, so clipping
+   it would make content unreachable on a short window. The art is inset
+   from both edges instead, so it can't cause sideways scroll. */
+.view-progress { padding: 0; position: relative; }
+.view-progress:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  /* Fixed, not min- -- this screen should never scroll, so its content
+     has to fit inside the viewport rather than push past it. */
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Drawings live inside the header band, not the full screen -- as
+   siblings of the band they'd have been painted over by its opaque
+   background wherever they overlapped. One pair sits centred in the
+   band; a second, smaller pair hangs from the band's bottom edge and
+   peeks a little past it into the body -- the "a little lower is okay"
+   request -- which needs the band's z-index above .progress-body so the
+   overflow shows instead of being covered by the next section. Pinned to
+   the outer edges, well clear of the centred 480px pot/checklist column
+   and the centred kicker/heading text. */
+.progress-art {
+  position: absolute;
+  width: clamp(210px, 23vw, 290px);
+  height: auto;
+  /* Resting, always-on state -- NOT dependent on the entrance animation
+     finishing. A previous version only set opacity via the animation's
+     `to` keyframe with fill-mode `backwards`, which holds the pre-start
+     state but not the end state -- so once the animation finished, the
+     element snapped back to its unanimated (invisible) CSS and the
+     drawing vanished a moment after appearing. It also meant anyone with
+     reduced motion (who never gets the animation at all) would never see
+     it. Setting the real final state here, unconditionally, fixes both:
+     the animation now only decorates the arrival, it doesn't own the
+     element's visibility. */
+  opacity: 0.8;
+  --y: translateY(-50%);
+  pointer-events: none;
+  transform: var(--y) rotate(var(--rot, 0deg)) scale(1);
+}
+/* Kept at the same height on both sides (rather than staggered) and
+   sized/spaced with a real vertical + horizontal margin against the peek
+   pair below -- a previous version let them overlap: the primary pair's
+   height at its old size could extend well past the band's bottom edge,
+   right into the zone the peek pair hangs in. This math is worked out
+   against a worst-case (short) band height, not just how it happens to
+   look on one screen. */
+.progress-art--herb { left: -2%; top: 38%; --rot: -10deg; --enter-i: 1; }
+.progress-art--leaf { right: -1%; top: 38%; --rot: 12deg; --enter-i: 2; }
+
+.progress-art--peek {
+  top: auto;
+  /* Pushed a little further down than the last round, to give the
+     bigger primary pair above the same real clearance it had before --
+     otherwise growing both without adjusting the gap reintroduces the
+     overlap this positioning was set up to avoid. */
+  bottom: -62%;
+  --y: none;
+  width: clamp(155px, 17vw, 220px);
+}
+.progress-art--bowl.progress-art--peek { left: 14%; --rot: 6deg; --enter-i: 3; }
+.progress-art--fish.progress-art--peek { right: 13%; --rot: -6deg; --enter-i: 4; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .view:not([hidden]) .progress-art {
+    animation: progress-art-in 0.6s var(--ease-out) backwards;
+    animation-delay: calc(var(--enter-i, 0) * 90ms + 200ms);
+  }
+}
+@keyframes progress-art-in {
+  from { opacity: 0; transform: var(--y) rotate(var(--rot, 0deg)) scale(0.8); }
+}
+
+@media (max-width: 1100px) {
+  .progress-art { display: none; }
+}
+
+.progress-header-band {
+  position: relative;
+  z-index: 2; /* above .progress-body, so the peeking pair shows past the band's edge instead of being painted over */
+  width: 100%;
+  flex-shrink: 0;
+  text-align: center;
+  padding: clamp(18px, 3vw, 32px) 20px clamp(14px, 2.5vw, 22px);
+}
+.progress-header-band h2 {
+  margin: 4px 0 0;
+  font-family: var(--font-title);
+  color: var(--accent-strong);
+  font-weight: 700;
+  font-size: clamp(2rem, 4.5vw, 2.8rem);
+}
+
+.progress-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0; /* lets this shrink inside the fixed-height screen instead of forcing an overflow */
+  width: 100%;
+  max-width: 640px; /* wider than before -- a left-to-right stepper needs more room per step than a vertical list did */
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Content starts right after the header instead of centring in the
+     remaining space -- higher up, and no reserved empty space wasting
+     height that this no-scroll screen can't spare. */
+  justify-content: flex-start;
+  padding: clamp(4px, 1vw, 12px) clamp(24px, 4vw, 40px) 8px;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* Real hand-drawn pot art (4 fill levels x 2 steam variants each) instead
+   of the earlier inline-SVG pot. The two frames for the current level
+   are stacked exactly on top of each other and crossfaded by app.js on
+   an interval, which reads as steam drifting without a video/GIF. */
+.pot-wrap {
+  /* The pot is the main entertainment on this screen while the agent
+     works -- sized to actually read as the centrepiece, not a small
+     accent above the checklist. */
+  position: relative;
+  /* Bounded by viewport height as well as width -- this screen no longer
+     scrolls, so on a short window the pot needs to shrink to fit rather
+     than pushing the checklist off screen. */
+  width: clamp(220px, min(37vw, 44vh), 460px);
+  aspect-ratio: 1 / 1;
+  margin: 0 0 8px;
+}
+.pot-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.pot-frame.is-active { opacity: 1; }
+
+/* Left-to-right stepper: each step is its own column (icon over label),
+   connected by a horizontal line running through the icons rather than
+   a vertical line down the left edge. */
+.stage-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: row; align-items: flex-start; justify-content: space-between;
+  width: 100%; text-align: center;
+}
+.stage-list li {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  flex: 1; padding: 4px 4px 0; font-size: 13px; font-weight: 600; color: var(--ink-faint);
+}
+.stage-list li::before {
+  content: ''; position: absolute; left: -50%; right: 50%; top: 15px; height: 1px; background: var(--border); z-index: 0;
+}
+.stage-list li:first-child::before { display: none; }
+.stage-list .icon {
+  position: relative; z-index: 1; width: 30px; height: 30px; padding: 6px;
+  border-radius: 50%; background: var(--surface); color: var(--ink-faint); flex-shrink: 0;
+}
+.stage-list li { transition: color var(--dur-base) ease; }
+.stage-list li.stage-active { color: var(--ink); }
+.stage-list li.stage-active .icon { color: var(--accent); animation: pulse-ring 1.6s ease-in-out infinite; }
+.stage-list li.stage-done { color: var(--ink); }
+.stage-list li.stage-done .icon { color: var(--accent-strong); }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Checklist builds top-to-bottom so it reads as a sequence of steps. */
+  .stage-list li {
+    animation: enter-rise 0.45s var(--ease-out) both;
+    animation-delay: calc(var(--stage-i, 0) * 90ms);
+  }
+  /* Only the row that just finished pops -- app.js updates rows in place
+     rather than rebuilding the list, so completed rows stay still. */
+  .stage-list li.stage-done .icon { animation: stage-pop 0.45s var(--ease-out); }
+}
+@keyframes stage-pop {
+  0% { transform: scale(0.65); }
+  60% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 35%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+/* Reduced motion is not negotiable: everything above collapses to an
+   instant state change. Nothing is hidden or broken by this -- the
+   scroll-reveal rules live inside a no-preference block, so content is
+   simply visible from the start. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ================================================================
+   SCREEN 3 -- result
+   ================================================================ */
+.view-result { padding: 0; }
+
+.result-header-band {
+  position: relative;
+  /* Lower than .view-result__body -- real recipe content (the note, the
+     ingredient list) must always win the paint order over the band's
+     decorative peeking illustrations. A peek illustration can still show
+     in the empty margin/gutter space around the columns, but it can
+     never render on top of the note or any actual text -- whichever of
+     the two occupies a given pixel, the real content is the one drawn
+     there. */
+  z-index: 1;
+  width: 100%;
+  padding: clamp(24px, 4vw, 36px) clamp(20px, 4vw, 40px) clamp(28px, 4vw, 36px);
+  text-align: center;
+}
+.result-header-band__inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* Each tab gets its own pair of drawings framing the recipe title:
+   raw produce for Ingredients, cooking kit for Directions. Both pairs
+   live in the markup and sit in the same two slots; the band's data-art
+   attribute decides which pair is showing, so switching tabs crossfades
+   one set out and the other in.
+   Sat at 60% height rather than centred so they stay clear of the back
+   and download buttons in the band's top corners; pointer-events are off
+   and the inner content sits above them, so they can never intercept a
+   click or sit on top of text. */
+.band-illustration {
+  position: absolute;
+  top: 60%;
+  width: clamp(170px, 19vw, 250px);
+  height: auto;
+  opacity: 0;
+  /* Resting tilt lives in --rot, vertical anchoring in --y, so the swap
+     can scale each drawing without flattening its rotation or position. */
+  --y: translateY(-50%);
+  transform: var(--y) rotate(var(--rot, 0deg)) scale(0.78);
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+.band-illustration--left { left: 1.5%; --rot: -8deg; }
+.band-illustration--right { right: 1.5%; --rot: 7deg; }
+/* Directions' pair sits further out toward the edges than Ingredients'. */
+.band-illustration--left[data-art-for='directions'] { left: -1.5%; }
+.band-illustration--right[data-art-for='directions'] { right: -1%; }
+/* Tomato only -- everything else in this pair stays at the shared size. */
+.band-illustration--left[data-art-for='ingredients'] { width: clamp(105px, 11vw, 155px); }
+
+/* A second, smaller drawing per side, hanging lower and peeking past the
+   band's bottom edge into the body -- the extra variety the ingredients
+   and directions tabs asked for, sized down so it reads as an accent
+   rather than competing with the primary pair. */
+.band-illustration--peek {
+  top: auto;
+  bottom: -16%;
+  --y: none;
+  width: clamp(120px, 13vw, 175px);
+}
+.band-illustration--left-b { left: 7%; --rot: 11deg; }
+.band-illustration--right-b { right: 6%; --rot: -9deg; }
+/* Per-tab nudges: rosemary (ingredients) and fish (directions) pulled
+   inward from the edge; fish sized up on its own. The olive basket
+   (bowl) reads as small at the shared peek size and needed pulling
+   inward too -- sized up on its own rather than growing the whole
+   peek tier for either. */
+.band-illustration--left-b[data-art-for='ingredients'] { left: 7%; }
+.band-illustration--left-b[data-art-for='directions'] { left: 14%; width: clamp(150px, 16vw, 215px); }
+.band-illustration--right-b[data-art-for='directions'] { right: 13%; width: clamp(155px, 16vw, 220px); }
+
+.result-header-band[data-art='ingredients'] .band-illustration[data-art-for='ingredients'],
+.result-header-band[data-art='directions'] .band-illustration[data-art-for='directions'] {
+  opacity: 0.85;
+  transform: var(--y) rotate(var(--rot, 0deg)) scale(1);
+}
+
+/* The incoming pair animates in; the outgoing pair falls back to the
+   base rule above and transitions out. Scoped to the showing set so the
+   hidden pair never flashes into view during a screen entrance. */
+@media (prefers-reduced-motion: no-preference) {
+  .view:not([hidden]) .result-header-band[data-art='ingredients'] .band-illustration[data-art-for='ingredients'],
+  .view:not([hidden]) .result-header-band[data-art='directions'] .band-illustration[data-art-for='directions'] {
+    animation: band-sticker-in 0.5s var(--ease-out) backwards;
+  }
+  .band-illustration--right,
+  .band-illustration--left-b { animation-delay: 90ms; }
+  .band-illustration--right-b { animation-delay: 150ms; }
+}
+@keyframes band-sticker-in {
+  from { opacity: 0; transform: var(--y) rotate(var(--rot, 0deg)) scale(0.78); }
+  to { opacity: 0.85; transform: var(--y) rotate(var(--rot, 0deg)) scale(1); }
+}
+
+@media (max-width: 1100px) {
+  .band-illustration { display: none; }
+}
+
+.view-result__body {
+  position: relative;
+  z-index: 2;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 56px);
+}
+
+.result-header-band__row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px;
+}
+
+.back-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: inherit; font-weight: 700; font-size: 14px; color: var(--ink-soft);
+  background: none; border: none; padding: 6px 0; cursor: pointer;
+  transition: color var(--dur-fast) ease;
+}
+.back-btn .icon { transition: transform var(--dur-base) var(--ease-out); }
+.back-btn:hover { color: var(--accent-strong); }
+/* Arrow slides back the way the button takes you. */
+.back-btn:hover .icon { transform: translateX(-4px); }
+
+.recipe-title {
+  font-family: var(--font-title); font-weight: 700; color: var(--accent-strong);
+  font-size: clamp(2.6rem, 6vw, 3.6rem); line-height: 1.1; margin: 12px auto 0;
+  max-width: 900px;
+}
+/* Applied by app.js when a title runs past 4 words -- a long title at
+   the short-title font size would dominate the whole header instead of
+   sitting inside it. */
+.recipe-title--long {
+  font-size: clamp(1.9rem, 4.2vw, 2.7rem);
+}
+
+.recipe-subtitle {
+  margin: 6px 0 24px;
+  font-family: var(--font-accent);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--ink-soft);
+}
+
+/* Tabs -- two rounded-rectangle toggle buttons, switchability obvious */
+.tabs {
+  display: inline-flex;
+  gap: 6px;
+  padding: 5px;
+  margin: 0 auto;
+  background: var(--surface);
+  border-radius: var(--radius-pill);
+}
+.tab-btn {
+  font: inherit; font-weight: 700; font-size: 15px;
+  color: var(--ink-soft); background: none; border: none;
+  padding: 10px 24px; cursor: pointer; border-radius: var(--radius-pill);
+  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.tab-btn { transition: color var(--dur-fast) ease, background-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.tab-btn:hover { color: var(--ink); }
+.tab-btn:hover:not(.is-active) { transform: translateY(-1px); }
+.tab-btn:active { transform: scale(0.97); }
+.tab-btn.is-active {
+  color: var(--accent-contrast);
+  background: var(--accent);
+  box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.tab-panel[hidden] { display: none; }
+/* Switching tabs fades the new panel in, so the swap reads as the same
+   page changing view rather than the content blinking. */
+@media (prefers-reduced-motion: no-preference) {
+  .tab-panel:not([hidden]) { animation: tab-in var(--dur-base) var(--ease-out) both; }
+}
+@keyframes tab-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Ingredients tab: list on the left, Instamart paper note on the right */
+.ingredients-columns {
+  display: grid;
+  grid-template-columns: 1fr 1.05fr;
+  gap: clamp(24px, 4vw, 56px);
+  align-items: start;
+}
+
+.ingredients-columns__right {
+  /* No background here anymore -- the note sits directly on the page,
+     the same way the "Heads up" unresolved-items note does, relying on
+     .cart-note's own box-shadow for lift instead of a paper-texture
+     backdrop. */
+  width: 84%;
+  margin-left: auto;
+}
+
+.cart-note__logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 15px;
+  object-fit: cover;
+  vertical-align: middle;
+  margin-right: 10px;
+}
+
+.section-subheading {
+  margin: 0 0 14px;
+  font-family: var(--font-accent);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--accent-strong);
+}
+
+/* Ingredients list */
+.ingredient-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ingredient-list li {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 11px 0; border-bottom: 1px solid var(--border-soft); font-size: 15px;
+}
+.ingredient-list li:last-child { border-bottom: none; }
+.ingredient-list .qty { font-weight: 700; color: var(--ink); min-width: 90px; flex-shrink: 0; }
+.ingredient-list .name { flex: 1; }
+.ingredient-list .note {
+  font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+.ingredient-list .note.sub { background: var(--accent-tint); color: var(--accent-strong); }
+.ingredient-list .note.bought { background: #e4efe1; color: #3f6b3a; }
+.ingredient-list .note.unresolved { background: var(--error-tint); color: var(--error); }
+
+/* Torn notebook-paper "added to cart" note */
+.cart-note {
+  position: relative;
+  background: var(--paper-note);
+  padding: 18px clamp(14px, 3vw, 24px) 16px 30px;
+  margin: 6px 0 14px;
+  border-radius: 2px;
+  box-shadow: 0 22px 44px -16px rgba(61, 43, 31, 0.55);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 26px,
+    var(--paper-note-line) 27px
+  );
+  background-position: 0 38px;
+}
+.cart-note::before {
+  /* torn/perforated left edge */
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 18px;
+  background-image: radial-gradient(circle at 4px 12px, var(--paper) 3px, transparent 3.5px);
+  background-size: 100% 24px;
+  background-repeat: repeat-y;
+  background-color: var(--paper-note);
+  clip-path: polygon(0% 2%, 100% 0%, 100% 100%, 0% 98%, 4% 92%, 0% 84%, 5% 78%, 0% 70%, 4% 63%, 0% 55%, 5% 48%, 0% 40%, 4% 33%, 0% 25%, 5% 18%, 0% 10%);
+}
+.cart-note h3 {
+  margin: 0 0 3px; font-family: var(--font-accent); font-style: italic; font-size: 1.3rem; color: var(--accent-strong); font-weight: 700;
+}
+.cart-note__sub { margin: 0 0 10px; font-size: 12px; color: var(--ink-soft); font-style: italic; }
+.cart-note ul { list-style: none; margin: 0; padding: 0; }
+.cart-note li {
+  display: flex; align-items: center; gap: 9px; padding: 6px 0; font-size: 13.5px;
+}
+.cart-note li .icon { color: var(--accent-strong); flex-shrink: 0; }
+.cart-note li .added-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 700; color: #3f6b3a; background: #e4efe1;
+  padding: 3px 10px; border-radius: var(--radius-pill); margin-left: 8px; white-space: nowrap;
+}
+.cart-note li .price { margin-left: auto; font-weight: 700; white-space: nowrap; }
+.cart-note .empty { color: var(--ink-faint); font-style: italic; font-size: 14px; margin: 0; }
+
+.cart-note--warning h3 { color: var(--error); }
+.cart-note--warning li { align-items: flex-start; }
+.cart-note--warning li .icon { color: var(--error); margin-top: 2px; }
+
+/* Total spent, written directly on the note instead of a separate boxed
+   callout -- a torn line above it stands in for the "box" without
+   actually being one. */
+.cart-note__total {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px;
+  margin: 14px 0 0; padding-top: 12px;
+  border-top: 1px dashed var(--paper-note-line);
+  font-size: 13px; font-weight: 700; color: var(--accent-strong);
+}
+.cart-note__total .amount { font-family: var(--font-title); font-size: 1.6rem; font-weight: 700; }
+.cart-note__total .of-budget { color: var(--ink-soft); font-weight: 600; white-space: nowrap; }
+
+/* Directions: steps on the left, a compact scrapbook-style photo on the
+   right when the recipe's own page had one (real og:image extraction --
+   silently absent when a page doesn't have one, never a broken icon). */
+.directions-columns {
+  display: grid;
+  grid-template-columns: 1.3fr 0.9fr;
+  gap: clamp(24px, 4vw, 48px);
+  align-items: start;
+}
+.directions-columns--full { display: block; }
+
+.recipe-photo-mat {
+  position: sticky;
+  top: clamp(24px, 4vw, 56px);
+  background: var(--gingham-band);
+  border-radius: var(--radius-card);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+}
+.recipe-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: calc(var(--radius-card) - 8px);
+  border: 6px solid var(--surface);
+  box-shadow: 0 10px 24px -14px rgba(61, 43, 31, 0.4);
+}
+
+/* Closing flourishes. These sit in normal flow rather than absolutely
+   positioned, so they can never land on top of text however long a
+   recipe turns out to be. */
+.flourish {
+  display: block;
+  height: auto;
+  opacity: 0.8;
+  pointer-events: none;
+}
+.flourish--cheese {
+  width: clamp(160px, 17vw, 230px);
+  margin: 34px auto 0;
+  transform: rotate(3deg);
+}
+
+.directions-list { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+.directions-list li {
+  counter-increment: step;
+  display: flex; gap: 16px;
+  padding: 16px 0; border-bottom: 1px solid var(--border-soft); font-size: 15.5px; line-height: 1.6;
+}
+.directions-list li:last-child { border-bottom: none; }
+.directions-list li::before {
+  content: counter(step);
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+  background: var(--accent-tint); color: var(--accent-strong);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-title); font-size: 17px; font-weight: 700;
+}
+
+/* ---------- Error ---------- */
+.view-error:not([hidden]) { display: flex; align-items: center; justify-content: center; }
+.error-card { max-width: 480px; border-color: var(--error-border); background: var(--error-tint); }
+.error-card h2 { color: var(--error); display: flex; align-items: center; gap: 8px; }
+.error-card h2 .icon { width: 22px; height: 22px; }
+#error-message { margin: 0 0 18px; color: var(--ink); font-size: 14.5px; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .brand-title { font-size: clamp(2.4rem, 10vw, 3.2rem); }
+  .ingredients-columns { grid-template-columns: 1fr; }
+  .directions-columns { grid-template-columns: 1fr; }
+  .recipe-photo-mat { position: static; }
+  .recipe-card form { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .row, .field-row { grid-template-columns: 1fr; }
+  .result-header-band__row { flex-direction: column; align-items: center; gap: 10px; }
+  .stage-list li { font-size: 11px; padding-left: 2px; padding-right: 2px; }
 }
