@@ -332,10 +332,8 @@ document.getElementById('summary').addEventListener('click', async (e) => {
   if (!currentJobId || !ingredient || !choice) return;
 
   // The button's sibling(s) -- e.g. both "add anyway" options for the same
-  // ingredient -- should disable together while the request is in flight,
-  // whether the button lives in a resolved-ingredient decision card or an
-  // unresolved-ingredient's item in the yellow box.
-  const card = button.closest('.decision-card, .unresolved-box__item');
+  // ingredient -- should disable together while the request is in flight.
+  const card = button.closest('.unresolved-box__item');
   const originalLabel = button.textContent;
   button.disabled = true;
   button.textContent = 'Adding...';
@@ -370,56 +368,6 @@ function renderTabs(summary) {
   return `
     <div class="tab-panel" data-panel="ingredients">${renderIngredientsTab(summary)}</div>
     <div class="tab-panel" data-panel="directions" hidden>${renderDirectionsTab(summary)}</div>
-  `;
-}
-
-// One card per successfully-resolved missing ingredient (bought or
-// substituted): why it's used in this recipe, whether/why a substitute was
-// considered, the real price comparison, the automatic decision, and a
-// real override button for whichever option wasn't chosen. Ingredients
-// that couldn't be resolved live in the yellow box (renderUnresolvedBox)
-// on the right instead -- see that function for why they're split out.
-function renderDecisionCards(summary) {
-  const decisions = (summary.ingredientDecisions || []).filter((d) => d.decision !== 'cannot_complete');
-  if (!decisions.length) return '';
-
-  const priceLine = (label, price) => (price === null ? '' : `<span class="decision-card__price-row"><span>${escapeHtml(label)}</span><span>₹${price}</span></span>`);
-
-  const overrideButton = (d, choice, label) => {
-    const canAdd = choice === 'original' ? d.canAddOriginal : d.canAddSubstitute;
-    if (!canAdd) return '';
-    // Don't offer a button for the option that's already the one added.
-    const alreadyChosen = (choice === 'original' && d.decision === 'buy') || (choice === 'substitute' && d.decision === 'substitute');
-    if (alreadyChosen) return '';
-    return `<button type="button" class="btn-secondary decision-card__override" data-override data-ingredient="${escapeHtml(d.ingredient)}" data-choice="${choice}">${escapeHtml(label)}</button>`;
-  };
-
-  return `
-    <div class="decision-cards">
-      ${decisions.map((d) => {
-        const substituteBlock = d.isEssential
-          ? ''
-          : d.substituteCandidate
-            ? `<p class="decision-card__substitution"><strong>${escapeHtml(d.substituteCandidate)}</strong> ${escapeHtml(d.substituteRationale)}</p>`
-            : '';
-        const prices = `${priceLine(d.ingredient, d.originalPrice)}${priceLine(d.substituteCandidate, d.substitutePrice)}`;
-        const originalLabel = `Add ${d.ingredient} instead`;
-        const substituteLabel = `Add ${d.substituteCandidate} instead`;
-        return `
-          <div class="decision-card decision-card--resolved">
-            <h4 class="decision-card__title">${escapeHtml(d.ingredient)}</h4>
-            <p class="decision-card__role"><span class="decision-card__label">Why it's used:</span> ${escapeHtml(d.roleExplanation)}</p>
-            ${substituteBlock}
-            ${prices ? `<div class="decision-card__prices">${prices}</div>` : ''}
-            <p class="decision-card__decision">${escapeHtml(d.reasoning)}</p>
-            <div class="decision-card__actions">
-              ${overrideButton(d, 'original', originalLabel)}
-              ${overrideButton(d, 'substitute', substituteLabel)}
-            </div>
-          </div>
-        `;
-      }).join('')}
-    </div>
   `;
 }
 
@@ -486,11 +434,10 @@ function renderIngredientsTab(summary) {
       <div class="ingredients-columns__left" data-reveal>
         <p class="section-subheading">Adapted ingredient measurements</p>
         <ul class="ingredient-list">${ingredientRows}</ul>
-        ${renderDecisionCards(summary)}
       </div>
       <div class="ingredients-columns__right" data-reveal>
         <div class="cart-note">
-          <h3><img class="cart-note__logo" src="images/swiggy-logo.webp" alt="" onerror="this.remove()" />From the Instamart cart</h3>
+          <h3><img class="cart-note__logo" src="images/swiggy-logo.webp" alt="" onerror="this.remove()" />Added to the Instamart cart</h3>
           <p class="cart-note__sub">Already added, ready for checkout in the app</p>
           ${cartItems.length ? `<ul>${cartRows}</ul>` : cartRows}
           <p class="cart-note__total">Total spent <span class="amount">₹${summary.totalCost}</span> <span class="of-budget">of ₹${summary.budget} budget</span></p>

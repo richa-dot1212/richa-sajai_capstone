@@ -33,9 +33,12 @@
      main navy accent. */
   --swiggy-orange: #fc8019;
   --swiggy-orange-strong: #e06e0f;
-  /* The same yellow the gingham header bands are built from, at full
-     opacity -- used as a solid fill here rather than the layered pattern. */
-  --gingham-yellow: #f7d154;
+  /* A solid fill matching the gingham header bands' overall look (the
+     pattern itself is semi-transparent yellow stripes over a cream base,
+     so its actual rendered colour is much lighter than the raw stripe
+     colour alone) -- lightened after feedback that the first version, the
+     raw stripe colour at full opacity, read as too saturated/bold. */
+  --gingham-yellow: #f6e6ab;
 
   --font-title: 'Swung Note', 'Slackey', 'Caveat', 'Segoe Script', cursive;
   --font-accent: 'Anaktoria', Georgia, 'Times New Roman', serif;
@@ -880,60 +883,6 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 .cart-note li .price { margin-left: auto; font-weight: 700; white-space: nowrap; }
 .cart-note .empty { color: var(--ink-faint); font-style: italic; font-size: 14px; margin: 0; }
 
-/* One card per missing ingredient: role explanation, substitution
-   reasoning, real price comparison, the automatic decision, and a real
-   override action -- additive alongside the plain ingredient list and
-   cart note above, not a replacement for either. */
-.decision-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-top: 20px;
-}
-.decision-card {
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-control);
-  padding: 16px 18px;
-  box-shadow: var(--shadow-card);
-}
-.decision-card__title {
-  margin: 0 0 8px;
-  font-family: var(--font-title);
-  color: var(--accent-strong);
-  font-size: 1.3rem;
-  text-transform: capitalize;
-}
-.decision-card__label { font-weight: 700; color: var(--ink); }
-.decision-card__role,
-.decision-card__substitution,
-.decision-card__decision {
-  margin: 0 0 8px;
-  font-size: 14px;
-  color: var(--ink-soft);
-  line-height: 1.5;
-}
-.decision-card__decision {
-  margin-bottom: 12px;
-  color: var(--ink);
-  font-weight: 600;
-}
-.decision-card__prices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  margin: 0 0 12px;
-  padding: 10px 14px;
-  background: var(--accent-tint);
-  border-radius: var(--radius-control);
-  font-size: 13.5px;
-  font-weight: 700;
-}
-.decision-card__price-row { display: flex; align-items: baseline; gap: 6px; color: var(--accent-strong); }
-.decision-card__price-row span:first-child { font-weight: 600; color: var(--ink-soft); text-transform: capitalize; }
-.decision-card__actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.decision-card__override:disabled { opacity: 0.6; cursor: default; }
-
 /* One solid-yellow box (matching the gingham header's yellow) holding
    every ingredient that couldn't be resolved within budget, sitting below
    the Instamart cart note. Combines what used to be a separate "Heads up"
@@ -974,12 +923,12 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 .btn-swiggy-orange {
   display: inline-flex; align-items: center; justify-content: center;
   font: inherit; font-weight: 700; font-size: 13.5px;
-  color: #fff; background: var(--swiggy-orange);
-  border: none; border-radius: var(--radius-pill);
-  padding: 9px 16px; cursor: pointer;
-  transition: background-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+  color: var(--swiggy-orange); background: #fff;
+  border: 1.5px solid var(--swiggy-orange); border-radius: var(--radius-pill);
+  padding: 8px 15px; cursor: pointer;
+  transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
-.btn-swiggy-orange:hover { background: var(--swiggy-orange-strong); }
+.btn-swiggy-orange:hover { background: var(--swiggy-orange); color: #fff; }
 .btn-swiggy-orange:active { transform: scale(0.97); }
 .btn-swiggy-orange:disabled { opacity: 0.6; cursor: default; }
 
