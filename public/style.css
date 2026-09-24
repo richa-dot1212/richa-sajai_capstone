@@ -505,10 +505,13 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
    are stacked exactly on top of each other and crossfaded by app.js on
    an interval, which reads as steam drifting without a video/GIF. */
 .pot-wrap {
+  /* The pot is the main entertainment on this screen while the agent
+     works -- sized to actually read as the centrepiece, not a small
+     accent above the checklist. */
   position: relative;
-  width: clamp(160px, 20vw, 220px);
+  width: clamp(280px, 34vw, 420px);
   aspect-ratio: 1 / 1;
-  margin: 0 0 12px;
+  margin: 0 0 8px;
 }
 .pot-frame {
   position: absolute;

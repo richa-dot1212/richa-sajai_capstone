@@ -446,3 +446,9 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - Respects `prefers-reduced-motion`: the fill level itself still updates for those users (that's real information about run progress, not just decoration), but the steam-swap interval never starts.
   - Removed the old inline-SVG pot entirely (the clip-path, the liquid rect/wave paths, the outline strokes, the CSS keyframe) now that it's replaced by real drawings.
 - **What didn't work on the first try:** nothing broke -- verified the fraction-to-level mapping progresses correctly through a full 4-stage run (reaches level 4 exactly when the last stage finishes, not before or with an off-by-one) with a quick standalone test before wiring it into the actual stage-tracking code.
+
+## 2026-09-24 -- Much bigger pot illustration (same branch)
+
+- **Time spent:** ~5 min
+- **Rough tokens used:** ~2K
+- **What shipped:** the pot is the main entertainment on the progress screen while the agent works -- sized it up from 160-220px to 280-420px so it actually reads as the centrepiece instead of a small accent sitting above the checklist.
