@@ -5,8 +5,21 @@
 // doesn't introduce a third, unrelated look.
 const fs = require('fs');
 const path = require('path');
-const puppeteer = require('puppeteer');
 const { slugify, categorizeDecisions } = require('./documentBuilder');
+
+// puppeteer@25 ships as an ESM-only package (no CommonJS build), while this
+// whole project is deliberately plain CommonJS (no "type": "module" in
+// package.json, every other file uses require()/module.exports) -- a
+// top-level `require('puppeteer')` throws ERR_REQUIRE_ESM. A dynamic
+// import() works from CommonJS regardless of the target module's format,
+// so it's used here instead of converting this file (or the project) to
+// ESM. Cached after the first call so every renderPdf() call after the
+// first doesn't re-import.
+let puppeteerPromise;
+function loadPuppeteer() {
+  if (!puppeteerPromise) puppeteerPromise = import('puppeteer').then((mod) => mod.default);
+  return puppeteerPromise;
+}
 
 const FONTS_DIR = path.join(__dirname, '..', 'public', 'fonts');
 // Embedded as base64 data URIs, not file:// URLs -- a page loaded via
@@ -129,6 +142,7 @@ function buildDocumentHtml(state, input) {
 }
 
 async function renderPdf(html) {
+  const puppeteer = await loadPuppeteer();
   const browser = await puppeteer.launch({ headless: true });
   try {
     const page = await browser.newPage();

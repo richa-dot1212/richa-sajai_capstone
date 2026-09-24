@@ -2,7 +2,7 @@
 
 One entry per commit: date, time spent, rough tokens used, what shipped. Filled before each commit/push.
 
-**Running total across the whole project (through the latest entry below): ~51 hours, ~925-1030K tokens.**
+**Running total across the whole project (through the latest entry below): ~51.5 hours, ~935-1040K tokens.**
 
 ---
 
@@ -523,6 +523,14 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - New `agent/cartActions.js` (`addToCart`/`removeFromCart`) creates and initializes a fresh `InstamartClient` for every single cart mutation, rather than reusing one across a run. `agent/workflow.js`'s per-ingredient loop now calls `addToCart()` for its automatic cart-adds instead of reusing the shared `instamart` client for that step (the shared client is still used for `get_addresses`/`search_products`, which weren't reported as broken). `server.js`'s override route now calls the same `addToCart`/`removeFromCart` helpers instead of its own near-duplicate inline logic, so both cart-mutation paths are now provably identical code, not just similarly-shaped.
 - **What didn't work on the first try:** nothing broke in this fix -- re-ran the existing stubbed-Instamart test script (from the previous round) to confirm the new `addToCart()` call site still produces the correct `update_cart` call and the rest of the workflow is unaffected. The exact server-side reason a reused Swiggy MCP session silently stopped persisting cart mutations partway through a longer run isn't visible from here (Swiggy's own API internals aren't inspectable), but the fix matches the one call pattern already proven to work against the real account, rather than guessing at Swiggy's internals.
 - **Still not verified**: whether this fix actually resolves the issue against a real account -- that needs the user to retest, since no live Swiggy login exists in this environment.
+
+## 2026-09-24 -- Fix Railway crash: puppeteer is ESM-only, this project is CommonJS (main)
+
+- **Time spent:** ~15 min
+- **Rough tokens used:** ~5K
+- **Context:** first real Railway deploy after merging the PDF feature crashed immediately on startup with `Error [ERR_REQUIRE_ESM]: require() of ES Module .../puppeteer/puppeteer.js from agent/pdfBuilder.js not supported`. Confirmed by checking `package.json` (no `"type": "module"` -- every file in this project uses `require()`/`module.exports`, deliberately plain CommonJS) and `puppeteer`'s own `package.json` (`"type": "module"`, no CommonJS build in v25) that this is a real, structural mismatch, not a local-environment fluke -- it just hadn't surfaced locally because this environment apparently tolerates it differently (or the local test runs happened to go through a code path Node resolves more leniently); Railway's stricter/clean container caught it.
+- **What shipped:** `agent/pdfBuilder.js`'s top-level `const puppeteer = require('puppeteer')` replaced with a lazily-cached dynamic `import('puppeteer')` inside a `loadPuppeteer()` helper, called from `renderPdf()` -- `import()` works from a CommonJS file regardless of the target package's module format, so this fixes the mismatch with a one-function change instead of converting this file (or the whole project) to ESM, which would have meant touching every other file's `require`/`module.exports` for no real benefit.
+- **What didn't work on the first try / real testing done:** re-ran the same direct `pdfBuilder.js` PDF-generation test and the full real end-to-end workflow test (stubbed Instamart, real Groq calls) used for the original PDF feature, confirming both still produce a real `%PDF-1.4` file after the fix. Also ran `npm start` directly and confirmed the server boots with no `ERR_REQUIRE_ESM` (or any other) error -- this exact failure mode (crash-on-require, not crash-on-first-PDF-generation) meant the whole server was down, not just the download feature, so verifying the boot itself mattered as much as verifying the PDF output.
 
 ## 2026-09-24 -- Fix real bug: downloaded PDF was rendering in Comic Sans (same branch)
 
