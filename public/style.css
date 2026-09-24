@@ -590,7 +590,14 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 
 .result-header-band {
   position: relative;
-  z-index: 2; /* above .view-result__body, so the peeking pair shows past the band's edge instead of being painted over */
+  /* Lower than .view-result__body -- real recipe content (the note, the
+     ingredient list) must always win the paint order over the band's
+     decorative peeking illustrations. A peek illustration can still show
+     in the empty margin/gutter space around the columns, but it can
+     never render on top of the note or any actual text -- whichever of
+     the two occupies a given pixel, the real content is the one drawn
+     there. */
+  z-index: 1;
   width: 100%;
   padding: clamp(24px, 4vw, 36px) clamp(20px, 4vw, 40px) clamp(28px, 4vw, 36px);
   text-align: center;
@@ -682,7 +689,7 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 
 .view-result__body {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   max-width: 1280px;
   margin: 0 auto;
   padding: clamp(24px, 4vw, 56px);
@@ -818,7 +825,7 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   padding: 18px clamp(14px, 3vw, 24px) 16px 30px;
   margin: 6px 0 14px;
   border-radius: 2px;
-  box-shadow: 0 10px 24px -14px rgba(61, 43, 31, 0.35);
+  box-shadow: 0 22px 44px -16px rgba(61, 43, 31, 0.55);
   background-image: repeating-linear-gradient(
     to bottom,
     transparent,

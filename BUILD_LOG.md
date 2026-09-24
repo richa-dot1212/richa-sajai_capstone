@@ -452,3 +452,12 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
 - **Time spent:** ~5 min
 - **Rough tokens used:** ~2K
 - **What shipped:** the pot is the main entertainment on the progress screen while the agent works -- sized it up from 160-220px to 280-420px so it actually reads as the centrepiece instead of a small accent sitting above the checklist.
+
+## 2026-09-24 -- Real recipe content always wins over decorative art, stronger note shadow (same branch)
+
+- **Time spent:** ~15 min
+- **Rough tokens used:** ~4-5K
+- **What shipped:**
+  - **Fixed a real stacking-order bug:** the result header band was deliberately painted *above* the body content (`.view-result__body`) so its peeking illustrations (rosemary/leaf on Ingredients, fish/bowl on Directions) could visibly spill past the band's bottom edge. The side effect: at some viewport widths those same illustrations could render on top of the actual ingredient list or the cart note, since paint order -- not layout position -- decides what's visible when two things occupy the same pixels. Swapped the z-index priority so the body's real content always wins the paint order over the band's decoration. A peek illustration can still show through in genuinely empty margin/gutter space, but it can never again render on top of the note or any real text.
+  - Boosted the cart note's box-shadow (bigger blur/spread, higher opacity) for a more pronounced "lifted off the page" look, per feedback. Since the "Heads up" unresolved-items note shares the same base `.cart-note` rule, it gets the stronger shadow too, keeping both notes visually consistent.
+- **What didn't work on the first try:** none of this round broke -- the overlap being fixed was a real, previously-shipped side effect of the deliberate peek-illustration design, not a new regression; worth flagging that "let a decorative element paint above real content" is a pattern to be more careful with going forward.
