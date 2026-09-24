@@ -143,7 +143,11 @@ function buildDocumentHtml(state, input) {
 
 async function renderPdf(html) {
   const puppeteer = await loadPuppeteer();
-  const browser = await puppeteer.launch({ headless: true });
+  // Railway's container runs the process as root, and Chromium's sandbox
+  // refuses to start as root without this flag ("Running as root without
+  // --no-sandbox is not supported"). Didn't show up locally since this
+  // environment isn't running as root.
+  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
   try {
     const page = await browser.newPage();
     // waitUntil: 'load' rather than 'networkidle0' -- a slow/broken remote

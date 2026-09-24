@@ -2,7 +2,7 @@
 
 One entry per commit: date, time spent, rough tokens used, what shipped. Filled before each commit/push.
 
-**Running total across the whole project (through the latest entry below): ~51.5 hours, ~935-1040K tokens.**
+**Running total across the whole project (through the latest entry below): ~52 hours, ~950-1055K tokens.**
 
 ---
 
@@ -523,6 +523,22 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - New `agent/cartActions.js` (`addToCart`/`removeFromCart`) creates and initializes a fresh `InstamartClient` for every single cart mutation, rather than reusing one across a run. `agent/workflow.js`'s per-ingredient loop now calls `addToCart()` for its automatic cart-adds instead of reusing the shared `instamart` client for that step (the shared client is still used for `get_addresses`/`search_products`, which weren't reported as broken). `server.js`'s override route now calls the same `addToCart`/`removeFromCart` helpers instead of its own near-duplicate inline logic, so both cart-mutation paths are now provably identical code, not just similarly-shaped.
 - **What didn't work on the first try:** nothing broke in this fix -- re-ran the existing stubbed-Instamart test script (from the previous round) to confirm the new `addToCart()` call site still produces the correct `update_cart` call and the rest of the workflow is unaffected. The exact server-side reason a reused Swiggy MCP session silently stopped persisting cart mutations partway through a longer run isn't visible from here (Swiggy's own API internals aren't inspectable), but the fix matches the one call pattern already proven to work against the real account, rather than guessing at Swiggy's internals.
 - **Still not verified**: whether this fix actually resolves the issue against a real account -- that needs the user to retest, since no live Swiggy login exists in this environment.
+
+## 2026-09-24 -- Fix Railway crash: Chromium sandbox refuses to run as root (main)
+
+- **Time spent:** ~10 min
+- **Rough tokens used:** ~3K
+- **Context:** past the ESM fix, Railway's next real deploy failed PDF generation with `Failed to launch the browser process: Running as root without --no-sandbox is not supported.` -- Railway's container runs the app process as root, which Chromium's sandbox explicitly refuses without an opt-out flag. Never surfaced locally since this dev environment doesn't run as root.
+- **What shipped:** `agent/pdfBuilder.js`'s `puppeteer.launch({ headless: true })` now passes `args: ['--no-sandbox']`. Smallest possible fix -- one launch option, nothing else touched.
+- **What didn't work on the first try / real testing done:** re-ran the direct `pdfBuilder.js` PDF test and the full real end-to-end workflow test (stubbed Instamart, real Groq calls) after the change, confirming both still produce a real `%PDF-1.4` file locally with the flag added (it's a no-op outside a root/sandboxed container, so local behavior is unchanged).
+
+## 2026-09-24 -- Clarify the GROQ_API_KEY missing-env error message (main)
+
+- **Time spent:** ~10 min
+- **Rough tokens used:** ~4K
+- **Context:** user saw "GROQ_API_KEY is not set (expected in .env)" on the deployed Railway site after adding the key as a Railway service variable, and asked why the deployed server wasn't picking it up. Inspected `agent/llm.js` and `agent/env.js` closely: the actual read is `process.env.GROQ_API_KEY` (agent/llm.js:32), never gated on a `.env` file existing -- `agent/env.js`'s loader only ever *adds* to `process.env` from a local `.env` file if present and never overwrites an existing value, and does nothing at all when no `.env` file exists (the normal, expected case on Railway, since `.env` is gitignored). No code bug found; the actual cause was Railway-side (which service/environment the variable was set on, whether a redeploy had picked it up, etc.) -- outside what's inspectable from the repo.
+- **What shipped:** reworded the thrown error in `agent/llm.js` from "expected in .env" to explicitly say it's reading `process.env` and to check the exact deployed service/environment's variables, not just a local file -- the old wording was genuinely misleading and pointed the debugging effort at the wrong place.
+- **What didn't work on the first try:** nothing broken -- this is a pure error-message clarity fix, no behavior change.
 
 ## 2026-09-24 -- Fix Railway crash: puppeteer is ESM-only, this project is CommonJS (main)
 

@@ -31,7 +31,12 @@ function strictify(schema) {
 async function callLLM({ systemInstruction, prompt, responseSchema }) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    throw new Error('GROQ_API_KEY is not set (expected in .env)');
+    // Read from process.env directly -- locally that's populated by
+    // agent/env.js's .env loader, but in any real deployment (Railway,
+    // etc.) it comes from the platform's own environment variables. This
+    // error means process.env.GROQ_API_KEY is genuinely empty at runtime,
+    // not that a .env file is missing.
+    throw new Error('GROQ_API_KEY is not set in the environment (locally: check .env; deployed: check the platform\'s environment variables for this exact service/environment)');
   }
 
   const messages = [];
