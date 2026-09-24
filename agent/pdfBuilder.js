@@ -9,9 +9,17 @@ const puppeteer = require('puppeteer');
 const { slugify, categorizeDecisions } = require('./documentBuilder');
 
 const FONTS_DIR = path.join(__dirname, '..', 'public', 'fonts');
-// file:// URLs so Puppeteer can load these without a running HTTP server --
-// page.setContent() has no base URL of its own to resolve relative paths against.
-const fontUrl = (file) => `file://${path.join(FONTS_DIR, file).replace(/\\/g, '/')}`;
+// Embedded as base64 data URIs, not file:// URLs -- a page loaded via
+// page.setContent() doesn't have a file:// origin, and Chrome silently
+// refuses to load local files from CSS in that case ("Not allowed to load
+// local resource"), which was the actual cause of the fonts failing and
+// falling back to the CSS generic `cursive` family -- which Windows Chrome
+// renders as Comic Sans MS. Inlining the font bytes sidesteps the whole
+// local-resource restriction.
+const fontDataUrl = (file) => {
+  const data = fs.readFileSync(path.join(FONTS_DIR, file)).toString('base64');
+  return `data:font/woff2;base64,${data}`;
+};
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -29,9 +37,9 @@ function buildDocumentHtml(state, input) {
 <head>
 <meta charset="utf-8" />
 <style>
-  @font-face { font-family: 'Swung Note'; src: url('${fontUrl('swungnote-regular.woff2')}') format('woff2'); }
-  @font-face { font-family: 'Anaktoria'; src: url('${fontUrl('anaktoria-regular.woff2')}') format('woff2'); }
-  @font-face { font-family: 'Karla'; src: url('${fontUrl('karla-variable.woff2')}') format('woff2'); }
+  @font-face { font-family: 'Swung Note'; src: url('${fontDataUrl('swungnote-regular.woff2')}') format('woff2'); }
+  @font-face { font-family: 'Anaktoria'; src: url('${fontDataUrl('anaktoria-regular.woff2')}') format('woff2'); }
+  @font-face { font-family: 'Karla'; src: url('${fontDataUrl('karla-variable.woff2')}') format('woff2'); }
 
   :root {
     --paper: #fbf3e2;
@@ -51,7 +59,11 @@ function buildDocumentHtml(state, input) {
     line-height: 1.5;
   }
   h1 {
-    font-family: 'Swung Note', cursive;
+    /* No generic cursive fallback -- if the embedded font ever failed to
+       load, Chrome/Windows resolves that generic family to Comic Sans MS,
+       which is exactly the bug this file fixes. Georgia is a safe last
+       resort instead. */
+    font-family: 'Swung Note', Georgia, serif;
     color: var(--accent-strong);
     font-size: 40px;
     margin: 0 0 4px;
@@ -125,6 +137,10 @@ async function renderPdf(html) {
     // server) must never hang the whole run; onerror="this.remove()" above
     // already handles the image failing to load at all.
     await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
+    // Embedded fonts decode asynchronously -- without this, page.pdf() can
+    // fire before they're ready and fall back to a system font for that
+    // first render.
+    await page.evaluateHandle('document.fonts.ready');
     return await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20px', bottom: '20px', left: '0px', right: '0px' } });
   } finally {
     await browser.close();

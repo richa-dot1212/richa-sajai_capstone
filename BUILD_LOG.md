@@ -2,7 +2,7 @@
 
 One entry per commit: date, time spent, rough tokens used, what shipped. Filled before each commit/push.
 
-**Running total across the whole project (through the latest entry below): ~50.5 hours, ~910-1015K tokens.**
+**Running total across the whole project (through the latest entry below): ~51 hours, ~925-1030K tokens.**
 
 ---
 
@@ -523,6 +523,14 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
   - New `agent/cartActions.js` (`addToCart`/`removeFromCart`) creates and initializes a fresh `InstamartClient` for every single cart mutation, rather than reusing one across a run. `agent/workflow.js`'s per-ingredient loop now calls `addToCart()` for its automatic cart-adds instead of reusing the shared `instamart` client for that step (the shared client is still used for `get_addresses`/`search_products`, which weren't reported as broken). `server.js`'s override route now calls the same `addToCart`/`removeFromCart` helpers instead of its own near-duplicate inline logic, so both cart-mutation paths are now provably identical code, not just similarly-shaped.
 - **What didn't work on the first try:** nothing broke in this fix -- re-ran the existing stubbed-Instamart test script (from the previous round) to confirm the new `addToCart()` call site still produces the correct `update_cart` call and the rest of the workflow is unaffected. The exact server-side reason a reused Swiggy MCP session silently stopped persisting cart mutations partway through a longer run isn't visible from here (Swiggy's own API internals aren't inspectable), but the fix matches the one call pattern already proven to work against the real account, rather than guessing at Swiggy's internals.
 - **Still not verified**: whether this fix actually resolves the issue against a real account -- that needs the user to retest, since no live Swiggy login exists in this environment.
+
+## 2026-09-24 -- Fix real bug: downloaded PDF was rendering in Comic Sans (same branch)
+
+- **Time spent:** ~20 min
+- **Rough tokens used:** ~6-7K
+- **Context:** user tried a real download right after the PDF feature shipped and saw Comic Sans instead of the site's actual fonts. Root cause, confirmed by directly inspecting the headless page's `document.fonts` state rather than guessing: the `@font-face` rules pointed at the vendored font files via `file://` URLs, but a page loaded through Puppeteer's `page.setContent()` doesn't have a `file://` origin -- Chrome silently refuses to load local files from CSS in that case ("Not allowed to load local resource"), logged to the page console once actually checked. Every custom font then failed to load and CSS fell back to the generic `cursive` family, which Windows Chrome resolves to Comic Sans MS -- exactly what was seen.
+- **What shipped:** `agent/pdfBuilder.js`'s font URLs now embed the actual font bytes as base64 `data:` URIs read directly from `public/fonts/`, instead of `file://` references -- sidesteps the local-resource restriction entirely rather than fighting it. Also removed the bare generic `cursive` fallback from the `h1` rule (Georgia/serif instead), since relying on a generic family that a browser can silently remap to Comic Sans is the actual mechanism of the bug and shouldn't be left as a fallback path even now that the primary font loads correctly. `renderPdf()` now also awaits `document.fonts.ready` before calling `page.pdf()`, since font decoding is asynchronous even once a `@font-face` rule successfully resolves.
+- **What didn't work on the first try / real testing done:** wrote a throwaway script that opens the actual page Puppeteer renders, listens for page console messages/errors, and inspects `document.fonts` directly -- this is what surfaced the real "Not allowed to load local resource" error and each font's `error` status, rather than guessing from the visual symptom alone. After the fix, re-ran the same inspection and confirmed all three fonts report `loaded` and the `h1` element's computed `font-family` correctly resolves to `"Swung Note"` first. Re-ran the full real end-to-end workflow test (stubbed Instamart, real Groq calls, real PDF render) afterward to confirm nothing else regressed.
 
 ## 2026-09-24 -- Styled HTML → PDF for the downloadable recipe (same branch)
 
