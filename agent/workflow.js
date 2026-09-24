@@ -5,7 +5,7 @@ const { callLLM } = require('./llm');
 const { loadSkill } = require('./skill');
 const { scaleIngredients } = require('./servingSize');
 const { runSelfCheck } = require('./selfCheck');
-const { buildDocument, saveDocument } = require('./documentBuilder');
+const { buildDocumentHtml, renderPdf, saveDocumentPdf } = require('./pdfBuilder');
 const { decideSubstituteOrBuy } = require('./decision');
 const { addToCart } = require('./cartActions');
 
@@ -425,9 +425,10 @@ function runWorkflow(input, context = {}) {
 
       // ==== STAGE 4: Recipe ready ====
       emitStage('ready');
-      emit('act', 'Generating personalized recipe document');
-      const documentMarkdown = buildDocument(state, input);
-      const savedPath = saveDocument(documentMarkdown, recipe.title);
+      emit('act', 'Generating personalized recipe document (styled PDF)');
+      const documentHtml = buildDocumentHtml(state, input);
+      const pdfBuffer = await renderPdf(documentHtml);
+      const savedPath = saveDocumentPdf(pdfBuffer, recipe.title);
       emit('observe', `Saved personalized recipe to ${savedPath}`);
 
       fetchClient.close();
@@ -436,7 +437,7 @@ function runWorkflow(input, context = {}) {
       // addressId is returned alongside state so a later user override
       // (server.js's /override route) can add a different real product to
       // the same cart without re-resolving the delivery address.
-      return { state, documentMarkdown, savedPath, summary, log, addressId };
+      return { state, savedPath, summary, log, addressId };
     } catch (err) {
       emit('error', err.message);
       try { fetchClient.close(); } catch {}
