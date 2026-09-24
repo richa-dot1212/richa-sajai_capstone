@@ -99,23 +99,11 @@
     </div>
     <div class="progress-body">
       <div class="pot-wrap" aria-hidden="true">
-        <svg class="pot-illustration" viewBox="0 0 200 190" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <clipPath id="potInsideClip">
-              <path d="M46,72 L154,72 L142,178 Q100,192 58,178 Z" />
-            </clipPath>
-          </defs>
-          <g clip-path="url(#potInsideClip)">
-            <rect id="pot-liquid" x="40" y="74" width="120" height="104" />
-            <path id="pot-liquid-wave" d="M40,178 Q60,174 80,178 T120,178 T160,178 V190 H40 Z" />
-          </g>
-          <path class="pot-outline" d="M46,72 L154,72 L142,178 Q100,192 58,178 Z" fill="none" />
-          <path class="pot-outline pot-outline--thick" d="M38,72 H162" fill="none" />
-          <path class="pot-outline" d="M38,80 q-28,10 -12,44" fill="none" />
-          <path class="pot-outline" d="M162,80 q28,10 12,44" fill="none" />
-          <path class="pot-steam pot-steam--1" d="M85,55 q-8,-12 0,-22 q8,-10 0,-20" fill="none" />
-          <path class="pot-steam pot-steam--2" d="M115,55 q-8,-12 0,-22 q8,-10 0,-20" fill="none" />
-        </svg>
+        <!-- Two stacked frames of the same fill level (different steam
+             shapes), crossfaded by app.js to suggest drifting steam
+             without needing real video/GIF. -->
+        <img id="pot-frame-a" class="pot-frame is-active" src="images/pot/level1-a.png" alt="" />
+        <img id="pot-frame-b" class="pot-frame" src="images/pot/level1-b.png" alt="" />
       </div>
       <ol id="stage-list" class="stage-list"></ol>
     </div>

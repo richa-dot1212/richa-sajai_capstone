@@ -500,33 +500,26 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   text-align: center;
 }
 
-.pot-wrap { width: clamp(140px, 20vw, 200px); margin: 0 0 12px; }
-.pot-illustration { width: 100%; height: auto; overflow: visible; }
-.pot-outline { stroke: var(--accent-strong); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
-.pot-outline--thick { stroke-width: 9; }
-
-/* The fill is driven by scaleY from the pot's base rather than by
-   animating the rect's height, so it runs on the compositor. */
-#pot-liquid {
-  fill: var(--accent);
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-  transform: scaleY(0);
-  transition: transform 0.8s var(--ease-out);
+/* Real hand-drawn pot art (4 fill levels x 2 steam variants each) instead
+   of the earlier inline-SVG pot. The two frames for the current level
+   are stacked exactly on top of each other and crossfaded by app.js on
+   an interval, which reads as steam drifting without a video/GIF. */
+.pot-wrap {
+  position: relative;
+  width: clamp(160px, 20vw, 220px);
+  aspect-ratio: 1 / 1;
+  margin: 0 0 12px;
 }
-#pot-liquid-wave {
-  fill: var(--accent);
-  transition: transform 0.8s var(--ease-out);
+.pot-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity 0.6s ease;
 }
-.pot-steam { stroke: var(--ink-faint); stroke-width: 4; stroke-linecap: round; opacity: 0.7; animation: steam-drift 3s ease-in-out infinite; }
-.pot-steam--2 { animation-delay: 1.2s; }
-@keyframes steam-drift {
-  0%, 100% { opacity: 0.25; transform: translateY(0); }
-  50% { opacity: 0.7; transform: translateY(-4px); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pot-steam { animation: none; }
-}
+.pot-frame.is-active { opacity: 1; }
 
 /* Left-to-right stepper: each step is its own column (icon over label),
    connected by a horizontal line running through the icons rather than

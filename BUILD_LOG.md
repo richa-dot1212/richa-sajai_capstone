@@ -434,3 +434,15 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
 - **Rough tokens used:** ~3-4K
 - **What shipped:** moved "Total spent ₹X of ₹Y budget" from its own blue-tinted `.total-cost` callout into the bottom of the cart note itself, separated only by a dashed line (echoing torn notebook paper rather than a boxed UI element). Removed the now-unused `.total-cost` CSS rules.
 - **What didn't work on the first try:** nothing broke -- confirmed no remaining references to the old class in either the markup or CSS before removing its rules.
+
+## 2026-09-24 -- Real hand-drawn pot illustrations replace the inline SVG (same branch)
+
+- **Time spent:** ~35 min
+- **Rough tokens used:** ~10-12K
+- **What shipped:** the user drew 8 real pot illustrations -- 4 fill levels, 2 steam-shape variants per level -- and asked for the pot on the progress screen to use them instead of the earlier code-drawn SVG. Grouped the 8 files into levels by their download timestamps (oldest pair = least filled, newest pair = most filled, confirmed visually by comparing liquid height across all 8 before committing to that mapping) and wired them in:
+  - `updatePotFill()` now maps the same stage-completion fraction it always used into a fill level (1-4, `Math.ceil(fraction * 4)`), instead of driving an SVG `scaleY` transform.
+  - Two `<img>` elements are stacked exactly on top of each other (`position: absolute; inset: 0`) showing the current level's two variants; a 1-second interval toggles which one is opaque, crossfading between them -- this is what reads as steam drifting, using real art instead of an animated SVG path.
+  - The crossfade interval only runs while the progress screen is actually visible: `showView()` now starts it on entering `view-progress` and stops it on leaving, so it doesn't keep quietly ticking (and repainting) in the background for the rest of the session.
+  - Respects `prefers-reduced-motion`: the fill level itself still updates for those users (that's real information about run progress, not just decoration), but the steam-swap interval never starts.
+  - Removed the old inline-SVG pot entirely (the clip-path, the liquid rect/wave paths, the outline strokes, the CSS keyframe) now that it's replaced by real drawings.
+- **What didn't work on the first try:** nothing broke -- verified the fraction-to-level mapping progresses correctly through a full 4-stage run (reaches level 4 exactly when the last stage finishes, not before or with an off-by-one) with a quick standalone test before wiring it into the actual stage-tracking code.

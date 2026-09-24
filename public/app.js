@@ -87,6 +87,11 @@ function showView(id) {
     // the same screen" instead of a fresh screen.
     window.scrollTo(0, 0);
     if (target) revealIn(target);
+    // The pot's steam-crossfade interval only makes sense while its
+    // screen is actually visible -- stop it everywhere else so it isn't
+    // quietly ticking in the background for the rest of the session.
+    if (id === 'view-progress') startPotSteamAnimation();
+    else stopPotSteamAnimation();
   };
 
   // Latest call always wins, so a fast error-during-transition can't land
@@ -170,20 +175,43 @@ function renderStages(reachedKeys, allDone) {
   updatePotFill(allDone ? STAGES.length : doneCount + (reachedKeys.length > doneCount ? 0.5 : 0), STAGES.length);
 }
 
-// Fills the pot illustration on the progress screen a fraction at a time as
+// Fills the pot illustration on the progress screen a level at a time as
 // stages complete, purely a delight touch -- has no effect on the real run.
-// Driven by transform (scale + translate) rather than SVG geometry so the
-// browser can composite it instead of re-rasterising the shape each frame.
-const POT_BOTTOM = 178;
-const POT_TOP = 74;
+// 4 real hand-drawn fill levels, each with 2 steam variants that get
+// crossfaded on an interval to suggest drifting steam.
+let potLevel = 1;
+let potVariant = 'a';
+let potAnimTimer = null;
 
 function updatePotFill(completedUnits, totalUnits) {
-  const liquid = document.getElementById('pot-liquid');
-  const wave = document.getElementById('pot-liquid-wave');
-  if (!liquid || !wave) return;
   const fraction = totalUnits ? Math.min(1, completedUnits / totalUnits) : 0;
-  liquid.style.transform = `scaleY(${fraction})`;
-  wave.style.transform = `translateY(${-fraction * (POT_BOTTOM - POT_TOP)}px)`;
+  potLevel = Math.max(1, Math.min(4, Math.ceil(fraction * 4) || 1));
+  renderPotFrame();
+}
+
+function renderPotFrame() {
+  const frameA = document.getElementById('pot-frame-a');
+  const frameB = document.getElementById('pot-frame-b');
+  if (!frameA || !frameB) return;
+  frameA.src = `images/pot/level${potLevel}-a.png`;
+  frameB.src = `images/pot/level${potLevel}-b.png`;
+  frameA.classList.toggle('is-active', potVariant === 'a');
+  frameB.classList.toggle('is-active', potVariant === 'b');
+}
+
+// Someone with reduced-motion set should still see the pot fill as it
+// happens (updatePotFill above always runs), just not the steam swap.
+function startPotSteamAnimation() {
+  stopPotSteamAnimation();
+  if (reduceMotion.matches) return;
+  potAnimTimer = setInterval(() => {
+    potVariant = potVariant === 'a' ? 'b' : 'a';
+    renderPotFrame();
+  }, 1000);
+}
+function stopPotSteamAnimation() {
+  clearInterval(potAnimTimer);
+  potAnimTimer = null;
 }
 
 form.addEventListener('submit', async (e) => {
