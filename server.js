@@ -3,7 +3,7 @@ const express = require('express');
 const path = require('path');
 const { randomUUID } = require('crypto');
 const { runWorkflow, STAGES, buildSummary } = require('./agent/workflow');
-const { InstamartClient } = require('./agent/instamartClient');
+const { addToCart, removeFromCart } = require('./agent/cartActions');
 const swiggyOAuth = require('./agent/swiggyOAuth');
 const { sessionMiddleware } = require('./agent/session');
 
@@ -142,34 +142,21 @@ app.post('/api/adapt/:jobId/override', async (req, res) => {
   if (!product) return res.status(400).json({ error: `No ${choice} product was found on Instamart for "${ingredient}"` });
 
   try {
-    const instamart = new InstamartClient(job.sessionId);
-    await instamart.init();
-
     // If a different product for this same ingredient was already added
     // (the automatic decision, or an earlier override), try to remove it
-    // first so the real cart doesn't end up holding both. Best-effort:
-    // this assumes Swiggy's update_cart treats quantity: 0 as "remove",
-    // which is the common convention but is NOT verified against the live
-    // API in this codebase -- if it doesn't behave that way, the add below
-    // still succeeds and is what actually matters for the override to work
-    // at all, so a failure here is logged and swallowed rather than
-    // blocking the real action the user asked for.
+    // first so the real cart doesn't end up holding both. A failure here is
+    // logged and swallowed rather than blocking the add below, which is
+    // what actually matters for the override to work at all.
     const previousProduct = record.product;
     if (previousProduct && previousProduct.spinId !== product.spinId) {
       try {
-        await instamart.callTool('update_cart', {
-          selectedAddressId: job.addressId,
-          items: [{ spinId: previousProduct.spinId, skuId: previousProduct.skuId, quantity: 0 }],
-        });
+        await removeFromCart({ sessionId: job.sessionId, addressId: job.addressId, product: previousProduct });
       } catch (removeErr) {
         console.log(`[override] Could not remove previous cart item for "${ingredient}": ${removeErr.message}`);
       }
     }
 
-    await instamart.callTool('update_cart', {
-      selectedAddressId: job.addressId,
-      items: [{ spinId: product.spinId, skuId: product.skuId, quantity: 1 }],
-    });
+    await addToCart({ sessionId: job.sessionId, addressId: job.addressId, product });
 
     record.decision = choice === 'original' ? 'buy' : 'substitute';
     record.product = product;

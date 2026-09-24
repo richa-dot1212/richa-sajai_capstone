@@ -7,6 +7,7 @@ const { scaleIngredients } = require('./servingSize');
 const { runSelfCheck } = require('./selfCheck');
 const { buildDocument, saveDocument } = require('./documentBuilder');
 const { decideSubstituteOrBuy } = require('./decision');
+const { addToCart } = require('./cartActions');
 
 // The 4 stages shown on the website -- everything underneath (the real
 // perceive/reason/act/observe steps) still happens and is still logged via
@@ -201,7 +202,8 @@ function runWorkflow(input, context = {}) {
     // by their own session id (agent/session.js) -- a real bug found
     // after deploying to Railway, where one shared global login meant
     // every visitor saw whoever connected first as "already connected".
-    const instamart = new InstamartClient(context.userSessionId || require('crypto').randomUUID());
+    const userSessionId = context.userSessionId || require('crypto').randomUUID();
+    const instamart = new InstamartClient(userSessionId);
 
     let addressId = null;
     const state = {
@@ -386,10 +388,15 @@ function runWorkflow(input, context = {}) {
 
         if (productToBuy) {
           emit('act', `Adding "${productToBuy.displayName}" to Instamart cart`);
-          await instamart.callTool('update_cart', {
-            selectedAddressId: addressId,
-            items: [{ spinId: productToBuy.spinId, skuId: productToBuy.skuId, quantity: 1 }],
-          });
+          // A real bug: reusing the same long-lived `instamart` client/
+          // session for every cart-add across this whole loop (after it
+          // had already made several prior search_products calls) meant
+          // items reported as "added" here weren't actually landing in
+          // the real Swiggy cart -- confirmed by live testing against a
+          // real account. addToCart() creates and initializes a fresh
+          // client for this one mutation, matching the override route
+          // (server.js), which was the one path confirmed to work.
+          await addToCart({ sessionId: userSessionId, addressId, product: productToBuy });
           // OBSERVE: confirm the cart action, then update the remaining
           // budget deterministically before moving to the next ingredient.
           emit('observe', `Added to cart: ${productToBuy.displayName} (₹${productToBuy.offerPrice})`);
