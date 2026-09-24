@@ -2,7 +2,7 @@
 
 One entry per commit: date, time spent, rough tokens used, what shipped. Filled before each commit/push.
 
-**Running total across the whole project (through the latest entry below): ~52 hours, ~950-1055K tokens.**
+**Running total across the whole project (through the latest entry below): ~52 hours, ~955-1060K tokens.**
 
 ---
 
@@ -531,6 +531,14 @@ One entry per commit: date, time spent, rough tokens used, what shipped. Filled 
 - **Context:** past the ESM fix, Railway's next real deploy failed PDF generation with `Failed to launch the browser process: Running as root without --no-sandbox is not supported.` -- Railway's container runs the app process as root, which Chromium's sandbox explicitly refuses without an opt-out flag. Never surfaced locally since this dev environment doesn't run as root.
 - **What shipped:** `agent/pdfBuilder.js`'s `puppeteer.launch({ headless: true })` now passes `args: ['--no-sandbox']`. Smallest possible fix -- one launch option, nothing else touched.
 - **What didn't work on the first try / real testing done:** re-ran the direct `pdfBuilder.js` PDF test and the full real end-to-end workflow test (stubbed Instamart, real Groq calls) after the change, confirming both still produce a real `%PDF-1.4` file locally with the flag added (it's a no-op outside a root/sandboxed container, so local behavior is unchanged).
+
+## 2026-09-24 -- Fix stale README claim about LLM call count (main)
+
+- **Time spent:** ~10 min
+- **Rough tokens used:** ~3K
+- **Context:** while prepping presentation content (mapping the real project onto a grading rubric), noticed `README.md`'s "Why an agent, not a script" section still described the old token-minimized design (flat 2 LLM calls per run, one batched role/substitute call for every missing ingredient at once) -- that was reverted back on 2026-09-24 when the agentic-per-ingredient-reasoning branch merged (1 recipe-parse call + 1 reasoning call per missing ingredient). Left uncorrected, this would have contradicted what's actually said live during the "AI involvement, defend it" portion of a presentation.
+- **What shipped:** rewrote that section to accurately describe the current 1+N call count, the per-ingredient perceive-reason-act-observe loop, the essential/defining-ingredient concept (no invented substitute for a recipe's defining ingredient unless a dietary transformation was actually requested), the reasoning-failure fallback (defaults to essential/no-substitute rather than crashing), and the actual history of why the call count changed (Gemini's free-tier quota drove the earlier flat-2 optimization; Groq removed that constraint, so the design priority shifted back to correctness).
+- **What didn't work on the first try:** nothing broken -- pure documentation accuracy fix, no code touched.
 
 ## 2026-09-24 -- Clarify the GROQ_API_KEY missing-env error message (main)
 
