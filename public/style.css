@@ -399,7 +399,10 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 .view-progress:not([hidden]) {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  /* Fixed, not min- -- this screen should never scroll, so its content
+     has to fit inside the viewport rather than push past it. */
+  height: 100dvh;
+  overflow: hidden;
 }
 
 /* Drawings live inside the header band, not the full screen -- as
@@ -471,8 +474,9 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   position: relative;
   z-index: 2; /* above .progress-body, so the peeking pair shows past the band's edge instead of being painted over */
   width: 100%;
+  flex-shrink: 0;
   text-align: center;
-  padding: clamp(32px, 6vw, 56px) 20px clamp(24px, 4vw, 36px);
+  padding: clamp(18px, 3vw, 32px) 20px clamp(14px, 2.5vw, 22px);
 }
 .progress-header-band h2 {
   margin: 4px 0 0;
@@ -486,18 +490,20 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   position: relative;
   z-index: 1;
   flex: 1;
+  min-height: 0; /* lets this shrink inside the fixed-height screen instead of forcing an overflow */
   width: 100%;
   max-width: 640px; /* wider than before -- a left-to-right stepper needs more room per step than a vertical list did */
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  /* Asymmetric padding biases the centred content upward, closer to the
-     header, rather than sitting dead-centre in the remaining viewport
-     height -- extra room is left at the bottom instead of the top. */
-  padding: clamp(12px, 2vw, 20px) clamp(24px, 4vw, 40px) clamp(64px, 10vw, 110px);
+  /* Content starts right after the header instead of centring in the
+     remaining space -- higher up, and no reserved empty space wasting
+     height that this no-scroll screen can't spare. */
+  justify-content: flex-start;
+  padding: clamp(4px, 1vw, 12px) clamp(24px, 4vw, 40px) 8px;
   text-align: center;
+  overflow: hidden;
 }
 
 /* Real hand-drawn pot art (4 fill levels x 2 steam variants each) instead
@@ -509,7 +515,10 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
      works -- sized to actually read as the centrepiece, not a small
      accent above the checklist. */
   position: relative;
-  width: clamp(280px, 34vw, 420px);
+  /* Bounded by viewport height as well as width -- this screen no longer
+     scrolls, so on a short window the pot needs to shrink to fit rather
+     than pushing the checklist off screen. */
+  width: clamp(200px, min(34vw, 40vh), 420px);
   aspect-ratio: 1 / 1;
   margin: 0 0 8px;
 }
