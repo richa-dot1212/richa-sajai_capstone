@@ -27,6 +27,16 @@
   --error-tint: #f5e3d6;
   --error-border: #e8c9ac;
 
+  /* Swiggy's own brand orange, used only for the "add anyway" override
+     buttons in the unresolved-ingredients box -- a deliberate visual cue
+     that the action is "add this to Instamart", distinct from the site's
+     main navy accent. */
+  --swiggy-orange: #fc8019;
+  --swiggy-orange-strong: #e06e0f;
+  /* The same yellow the gingham header bands are built from, at full
+     opacity -- used as a solid fill here rather than the layered pattern. */
+  --gingham-yellow: #f7d154;
+
   --font-title: 'Swung Note', 'Slackey', 'Caveat', 'Segoe Script', cursive;
   --font-accent: 'Anaktoria', Georgia, 'Times New Roman', serif;
   --font-body: 'Karla', system-ui, sans-serif;
@@ -870,10 +880,6 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 .cart-note li .price { margin-left: auto; font-weight: 700; white-space: nowrap; }
 .cart-note .empty { color: var(--ink-faint); font-style: italic; font-size: 14px; margin: 0; }
 
-.cart-note--warning h3 { color: var(--error); }
-.cart-note--warning li { align-items: flex-start; }
-.cart-note--warning li .icon { color: var(--error); margin-top: 2px; }
-
 /* One card per missing ingredient: role explanation, substitution
    reasoning, real price comparison, the automatic decision, and a real
    override action -- additive alongside the plain ingredient list and
@@ -890,10 +896,6 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   border-radius: var(--radius-control);
   padding: 16px 18px;
   box-shadow: var(--shadow-card);
-}
-.decision-card--unresolved {
-  border-color: var(--error-border);
-  background: var(--error-tint);
 }
 .decision-card__title {
   margin: 0 0 8px;
@@ -916,7 +918,6 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
   color: var(--ink);
   font-weight: 600;
 }
-.decision-card--unresolved .decision-card__decision { color: var(--error); }
 .decision-card__prices {
   display: flex;
   flex-wrap: wrap;
@@ -932,6 +933,55 @@ input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visib
 .decision-card__price-row span:first-child { font-weight: 600; color: var(--ink-soft); text-transform: capitalize; }
 .decision-card__actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .decision-card__override:disabled { opacity: 0.6; cursor: default; }
+
+/* One solid-yellow box (matching the gingham header's yellow) holding
+   every ingredient that couldn't be resolved within budget, sitting below
+   the Instamart cart note. Combines what used to be a separate "Heads up"
+   warning banner and per-ingredient reasoning cards into one place. */
+.unresolved-box {
+  margin-top: 18px;
+  padding: 18px 20px;
+  background: var(--gingham-yellow);
+  border-radius: var(--radius-control);
+}
+.unresolved-box__title {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 12px;
+  font-family: var(--font-title);
+  color: var(--ink);
+  font-size: 1.4rem;
+}
+.unresolved-box__title .icon { color: var(--error); }
+.unresolved-box__item {
+  padding: 12px 0;
+  border-top: 1px solid rgba(61, 43, 31, 0.15);
+}
+.unresolved-box__item:first-of-type { border-top: none; padding-top: 0; }
+.unresolved-box__ingredient {
+  margin: 0 0 4px;
+  font-weight: 700;
+  color: var(--ink);
+  text-transform: capitalize;
+}
+.unresolved-box__text {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.unresolved-box__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.btn-swiggy-orange {
+  display: inline-flex; align-items: center; justify-content: center;
+  font: inherit; font-weight: 700; font-size: 13.5px;
+  color: #fff; background: var(--swiggy-orange);
+  border: none; border-radius: var(--radius-pill);
+  padding: 9px 16px; cursor: pointer;
+  transition: background-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+}
+.btn-swiggy-orange:hover { background: var(--swiggy-orange-strong); }
+.btn-swiggy-orange:active { transform: scale(0.97); }
+.btn-swiggy-orange:disabled { opacity: 0.6; cursor: default; }
 
 /* Total spent, written directly on the note instead of a separate boxed
    callout -- a torn line above it stands in for the "box" without

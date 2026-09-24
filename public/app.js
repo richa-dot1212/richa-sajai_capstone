@@ -331,7 +331,11 @@ document.getElementById('summary').addEventListener('click', async (e) => {
   const choice = button.dataset.choice;
   if (!currentJobId || !ingredient || !choice) return;
 
-  const card = button.closest('.decision-card');
+  // The button's sibling(s) -- e.g. both "add anyway" options for the same
+  // ingredient -- should disable together while the request is in flight,
+  // whether the button lives in a resolved-ingredient decision card or an
+  // unresolved-ingredient's item in the yellow box.
+  const card = button.closest('.decision-card, .unresolved-box__item');
   const originalLabel = button.textContent;
   button.disabled = true;
   button.textContent = 'Adding...';
@@ -369,12 +373,14 @@ function renderTabs(summary) {
   `;
 }
 
-// One card per missing ingredient: why it's used in this recipe, whether/
-// why a substitute was considered, the real price comparison, the
-// automatic decision, and a real override button for whichever option
-// wasn't chosen (or both, when neither fit the budget).
+// One card per successfully-resolved missing ingredient (bought or
+// substituted): why it's used in this recipe, whether/why a substitute was
+// considered, the real price comparison, the automatic decision, and a
+// real override button for whichever option wasn't chosen. Ingredients
+// that couldn't be resolved live in the yellow box (renderUnresolvedBox)
+// on the right instead -- see that function for why they're split out.
 function renderDecisionCards(summary) {
-  const decisions = summary.ingredientDecisions || [];
+  const decisions = (summary.ingredientDecisions || []).filter((d) => d.decision !== 'cannot_complete');
   if (!decisions.length) return '';
 
   const priceLine = (label, price) => (price === null ? '' : `<span class="decision-card__price-row"><span>${escapeHtml(label)}</span><span>₹${price}</span></span>`);
@@ -391,17 +397,16 @@ function renderDecisionCards(summary) {
   return `
     <div class="decision-cards">
       ${decisions.map((d) => {
-        const statusClass = d.decision === 'cannot_complete' ? 'decision-card--unresolved' : 'decision-card--resolved';
         const substituteBlock = d.isEssential
           ? ''
           : d.substituteCandidate
             ? `<p class="decision-card__substitution"><strong>${escapeHtml(d.substituteCandidate)}</strong> ${escapeHtml(d.substituteRationale)}</p>`
             : '';
         const prices = `${priceLine(d.ingredient, d.originalPrice)}${priceLine(d.substituteCandidate, d.substitutePrice)}`;
-        const originalLabel = d.decision === 'cannot_complete' ? `Add ${d.ingredient} anyway` : `Add ${d.ingredient} instead`;
-        const substituteLabel = d.decision === 'cannot_complete' ? `Add ${d.substituteCandidate} anyway` : `Add ${d.substituteCandidate} instead`;
+        const originalLabel = `Add ${d.ingredient} instead`;
+        const substituteLabel = `Add ${d.substituteCandidate} instead`;
         return `
-          <div class="decision-card ${statusClass}">
+          <div class="decision-card decision-card--resolved">
             <h4 class="decision-card__title">${escapeHtml(d.ingredient)}</h4>
             <p class="decision-card__role"><span class="decision-card__label">Why it's used:</span> ${escapeHtml(d.roleExplanation)}</p>
             ${substituteBlock}
@@ -414,6 +419,39 @@ function renderDecisionCards(summary) {
           </div>
         `;
       }).join('')}
+    </div>
+  `;
+}
+
+// One yellow box (matching the gingham header's yellow) holding every
+// ingredient that couldn't be resolved within budget -- combines the old
+// separate "Heads up" note and per-ingredient reasoning into one place on
+// the right, below the Instamart cart note, per feedback that having the
+// same information split across a warning banner AND separate cards on
+// the left was redundant and hard to follow.
+function renderUnresolvedBox(summary) {
+  const decisions = (summary.ingredientDecisions || []).filter((d) => d.decision === 'cannot_complete');
+  if (!decisions.length) return '';
+
+  const overrideButton = (d, choice, label) => {
+    const canAdd = choice === 'original' ? d.canAddOriginal : d.canAddSubstitute;
+    if (!canAdd) return '';
+    return `<button type="button" class="btn-swiggy-orange" data-override data-ingredient="${escapeHtml(d.ingredient)}" data-choice="${choice}">${escapeHtml(label)}</button>`;
+  };
+
+  return `
+    <div class="unresolved-box">
+      <h3 class="unresolved-box__title">${icon('warning')}Heads up</h3>
+      ${decisions.map((d) => `
+        <div class="unresolved-box__item">
+          <p class="unresolved-box__ingredient">${escapeHtml(d.ingredient)}</p>
+          <p class="unresolved-box__text">${escapeHtml(d.roleExplanation)} ${escapeHtml(d.reasoning)}</p>
+          <div class="unresolved-box__actions">
+            ${overrideButton(d, 'original', `Add ${d.ingredient} anyway`)}
+            ${overrideButton(d, 'substitute', `Add ${d.substituteCandidate} anyway`)}
+          </div>
+        </div>
+      `).join('')}
     </div>
   `;
 }
@@ -443,20 +481,11 @@ function renderIngredientsTab(summary) {
         .join('')
     : '<p class="empty">Nothing needed to be bought -- everything was already on hand or substituted.</p>';
 
-  const unresolved = summary.unresolved && summary.unresolved.length
-    ? `<div class="cart-note cart-note--warning">
-         <h3>Heads up</h3>
-         <p class="cart-note__sub">Could not be resolved within your budget</p>
-         <ul>${summary.unresolved.map((u) => `<li>${icon('warning')}<span><strong>${escapeHtml(u.ingredient)}</strong>: ${escapeHtml(u.reasoning)}</span></li>`).join('')}</ul>
-       </div>`
-    : '';
-
   return `
     <div class="ingredients-columns">
       <div class="ingredients-columns__left" data-reveal>
         <p class="section-subheading">Adapted ingredient measurements</p>
         <ul class="ingredient-list">${ingredientRows}</ul>
-        ${unresolved}
         ${renderDecisionCards(summary)}
       </div>
       <div class="ingredients-columns__right" data-reveal>
@@ -466,6 +495,7 @@ function renderIngredientsTab(summary) {
           ${cartItems.length ? `<ul>${cartRows}</ul>` : cartRows}
           <p class="cart-note__total">Total spent <span class="amount">₹${summary.totalCost}</span> <span class="of-budget">of ₹${summary.budget} budget</span></p>
         </div>
+        ${renderUnresolvedBox(summary)}
       </div>
     </div>
   `;
